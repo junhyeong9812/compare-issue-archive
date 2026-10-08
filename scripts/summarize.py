@@ -41,13 +41,13 @@ def main():
     invalid = [r for r in rows if not r.get("valid")]
     cases = sorted({r["case"] for r in rows})
 
-    lines = ["# 토큰 비교 결과 — A(아카이브, 스스로 찾기) · F(아카이브 우선) · P(A′: 정답 카드 제공) · B(직접 조사)", "",
+    lines = ["# 토큰 비교 결과 — A(아카이브, 스스로 찾기) · F(아카이브 우선) · P(A′: 정답 카드 제공) · L(P-lite: 결론 요약 제공) · B(직접 조사)", "",
              f"- 전체 행 {len(rows)} · 유효 {len(valid)} · 무효/오류 {len(invalid)}",
              "- 수치 = 유효 실행의 중앙값. 총 토큰 = input + output + cache_creation + cache_read. 비율 = arm÷B (1 미만이면 그 arm이 적게 씀).",
              "", "## 케이스별", "",
              "| 케이스 | arm | n | 성공 | 총 토큰 | 출력 토큰 | 비용 $ | 턴 | 도구 호출 | 웹 검색+fetch | 아카이브 호출 | 카드 열람 실행 |",
              "|---|---|---|---|---|---|---|---|---|---|---|---|"]
-    arms = [a for a in ("A", "F", "P", "B") if any(r["arm"] == a for r in rows)]
+    arms = [a for a in ("A", "F", "P", "L", "B") if any(r["arm"] == a for r in rows)]
     agg = {a: [] for a in arms}
     ratio_rows = []
     for c in cases:
@@ -73,7 +73,7 @@ def main():
         ratio_rows.append((c, [(a, ratio(per[a]["tok"], per["B"]["tok"]), ratio(per[a]["cost"], per["B"]["cost"]),
                                 ratio(per[a]["turns"], per["B"]["turns"])) for a in arms if a != "B"]))
 
-    lines += ["", "## 케이스별 ÷B 비율 (중앙값 기준, A=스스로 찾기 · F=아카이브 우선 · P=정답 카드 제공)", "",
+    lines += ["", "## 케이스별 ÷B 비율 (중앙값 기준, A=스스로 찾기 · F=아카이브 우선 · P=정답 카드 제공 · L=결론 요약 제공)", "",
               "| 케이스 | arm | 총 토큰 | 비용 | 턴 |", "|---|---|---|---|---|"]
     lines += [f"| {c} | {a}÷B | {t} | {co} | {tu} |" for c, rs in ratio_rows for a, t, co, tu in rs]
 

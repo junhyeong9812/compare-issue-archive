@@ -64,6 +64,8 @@ PROMPT_CARD = (
     "\n\n작업 규칙: 이 문제와 관련된 과거 실전 이슈 카드가 {card_dir} 에 있다"
     " (1-question.md, 2-summary.md, 3-answer.md). 코드를 고치기 전에 **먼저 이 카드를 읽어라.**"
 )
+# 추가 실험 arm L(P-lite): 검색·요약이 완벽한 MCP의 상한 — 정답 카드 결론 2~3줄만 준다 (아카이브 접근은 B와 같이 금지)
+PROMPT_SUMMARY = "\n\n참고: 이 문제와 관련될 수 있는 과거 실전 이슈의 결론 요약이다.\n---\n{summary}\n---"
 ARM_PROMPTS = {"A": PROMPT_ARCHIVE, "F": PROMPT_ARCHIVE_FIRST, "B": ""}
 
 
@@ -81,6 +83,11 @@ def card_path(case: str) -> str:
 def arm_prompt(arm: str, case: str) -> str:
     if arm == "P":
         return PROMPT_CARD.format(card_dir=card_path(case))
+    if arm == "L":
+        summary = (ORACLE / case / "summary.txt").read_text().strip()
+        if not summary:
+            raise ValueError(f"{case}: summary.txt 비어 있음")
+        return PROMPT_SUMMARY.format(summary=summary)
     return ARM_PROMPTS[arm]
 CARD_FILE = re.compile(r"cia-lib/issue/\S*(1-question|2-summary|3-answer)\.md")
 
@@ -154,7 +161,7 @@ def audit(log_text: str, arm: str, run_id: str = "") -> list:
     # 실행 ID 형태(NN-ARM-rN-ts)의 다른 실행 폴더만 위반. 공유 상위 폴더에 임시 파일을 쓰는 것(예: /tmp/cia-runs/run.log)은 열람이 아님
     other_runs = (rf"cia-runs/(?!{re.escape(run_id)}\b)\d\d-[A-Z]-r\d+-\d+" if run_id
                   else r"cia-runs/\d\d-[A-Z]-r\d+-\d+")
-    pats = AUDIT_COMMON + [other_runs] + (AUDIT_B_ONLY if arm == "B" else [])
+    pats = AUDIT_COMMON + [other_runs] + (AUDIT_B_ONLY if arm in ("B", "L") else [])
     # Claude Code 권한 가드의 거부 메시지가 deny 규칙 문자열을 인용하는 것은 접근 시도가 아니다(오탐 제거)
     log_text = re.sub(r"a deny rule \(//[^)]*\)", "a deny rule (<rule>)", log_text)
     return sorted({p for p in pats if re.search(p, log_text)})
