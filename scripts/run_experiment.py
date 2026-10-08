@@ -47,6 +47,13 @@ PROMPT_ARCHIVE = (
     f"\n\n참고 자료: 과거 실전 이슈의 원인과 해결책을 정리한 아카이브가 {SB_ARCHIVE} 에 있다"
     " (README.md 가 인덱스). 관련 카드를 스스로 찾아 활용해도 된다."
 )
+# 추가 실험 arm F(archive-first): 아카이브를 먼저 찾고, 없거나 맞지 않을 때만 직접 조사
+PROMPT_ARCHIVE_FIRST = (
+    f"\n\n작업 규칙: 과거 실전 이슈의 원인과 해결책을 정리한 아카이브가 {SB_ARCHIVE} 에 있다 (README.md 가 인덱스)."
+    " 코드를 고치기 전에 **먼저 이 아카이브에서 관련 카드를 찾아 읽어라.** 관련 카드가 없거나 맞지 않을 때만 직접 조사하라."
+)
+ARM_PROMPTS = {"A": PROMPT_ARCHIVE, "F": PROMPT_ARCHIVE_FIRST, "B": ""}
+CARD_FILE = re.compile(r"cia-lib/issue/\S*(1-question|2-summary|3-answer)\.md")
 
 # 감사: 실행 로그에 나타나면 무효로 처리할 패턴 (원본 아카이브·정답·웹 우회)
 AUDIT_COMMON = [r"study-note", r"junhyeong9812", r"oracle/", r"compare-issue-archive", r"fix\.patch", r"hidden\.sh",
@@ -117,11 +124,13 @@ def audit(log_text: str, arm: str, run_id: str = "") -> list:
     # 다른 실행의 작업 폴더를 들여다본 흔적도 위반(동시 실행 간 오염)
     other_runs = rf"cia-runs/(?!{re.escape(run_id)}\b)[\w.-]+" if run_id else r"cia-runs/[\w.-]+"
     pats = AUDIT_COMMON + [other_runs] + (AUDIT_B_ONLY if arm == "B" else [])
+    # Claude Code 권한 가드의 거부 메시지가 deny 규칙 문자열을 인용하는 것은 접근 시도가 아니다(오탐 제거)
+    log_text = re.sub(r"a deny rule \(//[^)]*\)", "a deny rule (<rule>)", log_text)
     return sorted({p for p in pats if re.search(p, log_text)})
 
 
 def parse_log(log_path: Path) -> dict:
-    out = {"result": None, "tool_calls": 0, "tools": {}, "archive_reads": 0}
+    out = {"result": None, "tool_calls": 0, "tools": {}, "archive_reads": 0, "card_reads": 0}
     for line in log_path.read_text(errors="replace").splitlines():
         try:
             ev = json.loads(line)
@@ -133,8 +142,11 @@ def parse_log(log_path: Path) -> dict:
                     out["tool_calls"] += 1
                     name = blk.get("name", "?")
                     out["tools"][name] = out["tools"].get(name, 0) + 1
-                    if str(ARCHIVE_DIR) in json.dumps(blk.get("input", {})):
+                    inp = json.dumps(blk.get("input", {}), ensure_ascii=False)
+                    if str(ARCHIVE_DIR) in inp:
                         out["archive_reads"] += 1
+                    if CARD_FILE.search(inp):
+                        out["card_reads"] += 1
         elif ev.get("type") == "result":
             out["result"] = ev
     return out
@@ -189,7 +201,7 @@ def run_one(case: str, arm: str, rep: int, model: str, budget: str, timeout_s: i
     shutil.copy2(CREDS, sb_creds)
     os.chmod(sb_creds, 0o600)
 
-    prompt = PROMPT_BASE + (PROMPT_ARCHIVE if arm == "A" else "")
+    prompt = PROMPT_BASE + ARM_PROMPTS[arm]
     log_path = RAW / f"{run_id}.jsonl"
     t0 = time.time()
     timed_out = False
@@ -219,7 +231,7 @@ def run_one(case: str, arm: str, rep: int, model: str, budget: str, timeout_s: i
         "cache_read_input_tokens": usage.get("cache_read_input_tokens"),
         "web_search_requests": (usage.get("server_tool_use") or {}).get("web_search_requests"),
         "web_fetch_requests": (usage.get("server_tool_use") or {}).get("web_fetch_requests"),
-        "tool_calls": parsed["tool_calls"], "tools": parsed["tools"], "archive_tool_calls": parsed["archive_reads"],
+        "tool_calls": parsed["tool_calls"], "tools": parsed["tools"], "archive_tool_calls": parsed["archive_reads"], "card_tool_calls": parsed["card_reads"],
         "audit_violations": violations, "valid": not violations and parsed["result"] is not None,
         "tampered": j["tampered"], "test_pass": j["test_pass"], "hidden_pass": j["hidden_pass"],
         "success": j["test_pass"] and j["hidden_pass"] and not j["tampered"],
