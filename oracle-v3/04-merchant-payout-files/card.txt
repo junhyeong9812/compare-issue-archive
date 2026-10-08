@@ -1,0 +1,22 @@
+issue/xferq/name-underscore-silent-park
+카드: archive-v3/issue/xferq/name-underscore-silent-park/ (가상 회사 한빛페이 아카이브, 실행 시 /tmp/cia-lib3/issue 로 복사)
+채택 근거: 카드의 규칙 = "xferq send는 원격 이름에 '_'가 4개 이상이면 exit 0·접수 번호를 주지만 전송을 st 6으로 묶고 ls·pull(파트너 수신함)에서 뺀다".
+  카드 사건은 카드사 매출 대사 파일 재전송(재전송분에 '_R<n>' 표시를 붙여 '_' 4개 → 카드사가 재전송 파일 미수신, 카드사 문의로 발견)이고,
+  이번 케이스는 가맹 파트너 일일 정산 파일의 행 수 한도 분할('_<n>' 분할 번호 → 거래가 많은 날짜만 미수신)이다.
+  같은 블랙박스 규칙·같은 대처(덧붙임은 '-' 구분자로, 합의 접두 유지 + status/ls 기반 전송 확인), 다른 서비스·다른 증상.
+근본 원인: lib/naming.sh settle_name — 분할된 날의 파일 이름에 분할 번호를 '_<n>'으로 붙여 '_'가 4개가 된다. 분할되지 않는 날(_ 3개)은 정상.
+올바른 해결: 분할 번호를 '_' 아닌 구분자로 붙인다(fix.patch: '-<n>'). 합의 접두 HBP_SETTLE_<파트너>_<날짜>, 파일당 20행 한도, 본문 형식은 그대로.
+증상 파일: lib/receipts.sh(bin/payout receipts — 파트너 수신함 기준 일자별 집계) · tests/test_partner_delivery.sh(E2E).
+  원인 파일: lib/naming.sh (경로: bin/payout run → steps/20-build.sh settle_name → steps/30-ship.sh → lib/xfer.sh xfer_send → vendor/bin/xferq send).
+미끼:
+  1) lib/chunk.sh chunk_rows — split 접미사·올림 나눗셈이 수상해 보이지만 무죄(행 손실 없음, 단위 테스트 통과). 바꿔도 실패.
+  2) lib/manifest.sh manifest_compact — 재실행 dedupe가 분할 파일을 지울 것처럼 보이지만 키에 이름이 포함돼 무죄. 빼도 실패.
+  3) lib/xfer.sh xfer_send — exit≠0일 때만 재시도·접수 번호 형식 검사. 성공 응답을 믿는 곳이지만 그 자체는 무죄.
+  4) lib/csvfile.sh — CRLF·헤더의 n/총수 표기(파트너 적재기 문제처럼 보임) — 무죄.
+  5) lib/dates.sh date_range / conf 의 MAX_ROWS_PER_FILE — 한도를 올리면 test.sh는 통과하지만 파트너 규격(20행) 위반으로 hidden 실패.
+hidden: 11월 말~12월 초 다른 파트너 세트(Q101: 20행·21행·45행·0행·40행, Q202: 41행 하루, Q303 정지)를 돌리고 같은 날 재실행 1회.
+  vendor/bin/xferq ls/pull 로 파트너 수신함을 직접 읽어 전 명세 행이 정확히 1회, 파일당 ≤20행, 헤더 n/총수 완결, 트레일러 일치, CRLF,
+  합의 접두(HBP_SETTLE_<파트너>_<날짜> 뒤 비숫자) 유지, 모든 접수 번호가 st 2(묶인 전송 0건), receipts 보고서 일치를 검사.
+  우회 확인: receipts를 로컬 산출물로 재구현(test 통과/hidden 실패), 행 한도 100으로 분할 회피(test 통과/hidden 실패),
+  묶이면 '-' 이름으로 재전송(test 통과/hidden 실패 — 묶인 전송이 남음), 접두를 '-'로 변경(둘 다 실패), chunk·manifest 미끼(둘 다 실패),
+  정답 '-<n>'·대안 'p<n>'(둘 다 통과).

@@ -1,0 +1,21 @@
+issue/cfgsvc/set-hidden-until-mark
+카드: archive-v3/issue/cfgsvc/set-hidden-until-mark/ (가상 회사 한빛페이 아카이브, 실행 시 /tmp/cia-lib3/issue 로 복사)
+채택 근거: 카드의 규칙 = "cfgsvc set은 exit 0·변경 번호를 주지만, 이미 값이 있던 키는 다음 mark 전까지 get이 이전 값을 준다(새 키는 바로 보임). mark는 '현재 마크 출력'으로만 문서화".
+  카드 사건은 운영 콘솔의 한도·속도 제한 변경 화면(set 직후 get으로 '반영 확인' → 기존 키는 '반영 실패'로 표시, 운영자가 재시도 반복, 새 키는 정상)이고,
+  이번 케이스는 서버 설정 배포 스크립트(set 직후 get 값으로 app.conf 렌더 → 기존 키를 바꾼 api 풀만 옛 설정 배포, 배포 후 조회는 새 값)다.
+  같은 블랙박스 규칙·같은 대처(set 묶음 뒤 읽기 전에 mark), 다른 서비스·다른 증상.
+근본 원인: steps/20-apply.sh — 변경을 set만 하고 mark 없이 다음 단계(30-render)가 get으로 렌더한다. mark는 맨 끝 50-record(이력용)에서만 부른다.
+올바른 해결: apply 단계에서 set을 모두 한 뒤 cfg_mark(= cfgsvc mark)를 부른다(fix.patch). render 전에 mark가 오기만 하면 된다(단계 순서를 바꾸는 것도 동치).
+증상 파일: 렌더 결과 $OUT_DIR/hosts/<host>/app.conf (bin/rollout show) · tests/test_rollout.sh(E2E).
+  원인 파일: steps/20-apply.sh (경로: bin/rollout apply → 20-apply cfg_set → 30-render render_host → resolve → lib/cfg.sh cfg_get → vendor/bin/cfgsvc get).
+미끼:
+  1) lib/cache.sh + cfg_get 의 조회 캐시 — "옛 값 = 캐시"로 보이지만 단계 프로세스마다 새로 만들고 지운다. 빼도 실패.
+  2) lib/resolve.sh 범위 우선순위(host → pool → global) — 무죄. 순서를 바꾸면 더 깨진다.
+  3) lib/render.sh / lib/text.sh sed 치환·이스케이프(&, |) — 무죄(단위 테스트 통과, hidden에 특수문자 URL).
+  4) steps/40-verify.sh — 렌더 파일과 서비스를 대조하는데 같은 시점의 같은(옛) 값을 읽어 통과한다. 검증이 있는데도 놓친 이유일 뿐 무죄.
+  5) lib/inventory.sh 상태 D 서버 제외, steps/10-check.sh 의 run_dir 재생성 — 무죄.
+hidden: 다른 서버 세트(pay/ops/edge 풀, 빠진 서버 1)에 릴리스 3개를 연속 적용. 사이에 운영자가 서비스에 직접 넣은 값 두 개
+  (하나는 mark까지, 하나는 set만 — 기존 키). 매 배포 뒤 모든 활성 서버·모든 설정에서 렌더 값 == vendor/bin/cfgsvc get 범위 해석 값 == 기대값,
+  전역 기존 키 변경·host 기존 키 변경·새 host 키·새 pool 키·같은 키 두 번(마지막 값)·특수문자 URL 포함.
+  우회 확인: show가 매번 서비스에서 다시 렌더(test 통과/hidden 실패), 릴리스 값을 get 위에 덮어 렌더(test 통과/hidden 실패 — 운영자 set 누락),
+  릴리스 파일만으로 재구현(test 통과/hidden 실패), 캐시 제거·범위 순서 미끼(둘 다 실패), 정답·record 단계 앞당기기·set마다 mark·mark 뒤 재렌더(모두 통과 — 규칙에 맞는 대안).

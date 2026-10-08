@@ -1,0 +1,31 @@
+issue/pushq/schedule-offslot-silent-ticket
+카드: archive-v3/issue/pushq/schedule-offslot-silent-ticket/
+채택 근거: 카드의 규칙(schedule --at 이 5분 경계 — 분 5의 배수·초 00 — 가 아니면 티켓 발급·exit 0 이지만 큐 미적재, list·log 로만 보임)과
+  교정(늦으면 안 되는 알림은 예약 시각을 직전 5분 경계로 내림, 올림·반올림·즉시 발송은 선택하지 않음)이 이 케이스의 원인·수정과 같다.
+  카드 사건은 같은 규칙을 쿠폰 서비스(가입 축하 쿠폰 만료 1시간 전 알림, 발급 시각의 초가 실려 거의 전부 유실, 쿠폰 사용률 지표 하락으로 발견)에서 겪은 과거 사건이다.
+  이 케이스는 자동이체 알림 서비스(출금 시각 − 고객 설정 lead, 실패 시각+2h−30분 재출금 안내, 고객 미수신 문의·리포트 미발송)라
+  서비스·시각 계산식·증상(일부 가맹점 시각·재출금 안내만 유실)이 다르다.
+블랙박스 규칙: pushq schedule 의 --at 이 하루 기준 300초 경계(분%5==0 && 초==0)가 아니면 "ticket T……" 출력·exit 0 이지만 큐에 넣지 않는다.
+  list 에 없고, run 이 시각을 지나도 log 에 없고, cancel 하면 E31.
+근본 원인: src/scheduling/sendTime.ts SendTimePolicy.sendAt 이 (출금·재출금 시각 − lead) 를 경계 정렬 없이 그대로 예약 시각으로 쓴다.
+  13:47 출금 −30분 = 13:17, 18:33 −10분 = 18:23, 실패 08:00:37 +2h −30분 = 09:30:37 → 적재 안 됨. 08:00·10:20·09:00 계약은 경계라 정상.
+증상 파일: src/report/reminderReport.ts(리포트 "미발송"·발송 건수 부족) · GET /members/:id/notifications(벤더 발송 기록) · tests/reminders.e2e.test.ts.
+  경로: api/routes → service/reminderService → service/reminderPlanner → scheduling/sendTime(원인) → push/pushqClient.schedule(호출부, 티켓만 믿음) → report.
+올바른 해결: 예약 시각을 직전 5분 경계로 내린다(초 00). fix.patch 는 sendTime.ts 에서 quiet-hours 처리 뒤 floor.
+  (같은 내림을 pushqClient.schedule 에서 해도 test.sh·hidden 모두 통과 — 정답으로 인정.)
+미끼:
+  1) src/scheduling/quietHours.ts — 야간 22:00~07:00 을 전날 21:00 으로 당김. 무죄(결과가 항상 경계). 제거해도 test.sh 실패.
+  2) src/service/reminderService.ts planDay 의 이미 예약한 키 건너뛰기 + planner 의 seen 집합 — 무죄. 제거해도 실패.
+  3) src/service/reminderService.ts cancelAutopay 의 E31 무시 — 빠진 티켓이면 E31 이 나오지만 해지 경로에서만 호출. 무죄.
+  4) src/push/deviceToken.ts — 토큰 정규화(대문자 접두·공백). 무죄(" IOS:..." 고객 M1003 도 실제 원인은 13:17).
+  5) src/time/localTime.ts — Date.UTC 기반 시각 계산. 무죄(단위 테스트 통과).
+hidden: 17계약(분이 제각각인 출금 시각 × lead 10/30/60/1440, 야간 당김 1건) + 초가 붙은 실패 3건(그중 1건은 야간 당김)을
+  5개 시계 지점에서 진행하며 매 지점마다 바이너리 log --to <기기> 로 "직전 5분 경계 시각에 정확히" 도착했는지·아직 안 와야 할 것이 안 왔는지 대조,
+  끝에 리포트 20/20, 벤더 log 20건, 벤더 list 빈 큐. 원 샘플도 같은 기준으로 재검.
+우회 확인(test.sh / hidden):
+  m1 끝단 땜질(리포트·수신함을 앱 자체 예약 기록으로 채움) PASS / FAIL
+  m2 끝단 땜질(시계 진행 후 빠진 건 pushq send 즉시 발송) FAIL / FAIL(늦게 도착)
+  m3 바이너리 미사용 재구현(인메모리 예약 큐·자체 발송) PASS / FAIL(벤더 발송 기록 없음)
+  m4 미끼 quietHours 제거 FAIL / FAIL · m5 미끼 중복 건너뛰기 제거 FAIL / FAIL
+  m6 5분 반올림 FAIL / FAIL · m7 5분 올림 FAIL / FAIL · m8 10분 내림 PASS / FAIL · m9 초만 버림 FAIL / FAIL
+  m10 pushqClient.schedule 에서 5분 내림 PASS / PASS (정답 위치 변형)

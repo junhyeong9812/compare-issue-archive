@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# rollout — app configuration rollout for the payment hosts.
+#
+#   rollout apply RELEASE     check → apply → render → verify → record
+#   rollout show HOST         the rendered app.conf of HOST
+#   rollout hosts             active hosts and their pools
+#   rollout history           finished rollouts
+#
+# RELEASE is a file name under releases/ without .rel (e.g. r2026.10.08).
+# Configuration: conf/rollout.conf (ROLLOUT_* overrides).
+set -u
+export LC_ALL=C.UTF-8
+ROLLOUT_HOME=$(cd "$(dirname "$0")/.." && pwd)
+export ROLLOUT_HOME
+. "$ROLLOUT_HOME/steps/_env.sh"
+
+usage() { sed -n '3,10p' "$0" | sed 's/^# \{0,1\}//'; }
+
+cmd_apply() {
+  local rel=$1 step rc
+  for step in "$ROLLOUT_HOME"/steps/[0-9][0-9]-*.sh; do
+    bash "$step" "$rel"
+    rc=$?
+    if [ "$rc" -ne 0 ]; then
+      warn "step $(basename "$step") failed (exit $rc)"
+      return "$rc"
+    fi
+  done
+  log "rollout $rel complete"
+}
+
+cmd_show() {
+  local f
+  f=$(host_out "$1")
+  require_file "$f" "rendered config for $1"
+  cat "$f"
+}
+
+[ $# -ge 1 ] || { usage; exit 64; }
+cmd=$1; shift
+case "$cmd" in
+  apply)   [ $# -eq 1 ] || { usage; exit 64; }; cmd_apply "$1" ;;
+  show)    [ $# -eq 1 ] || { usage; exit 64; }; cmd_show "$1" ;;
+  hosts)   active_hosts ;;
+  history) history_show ;;
+  -h|--help|help) usage ;;
+  *) usage; exit 64 ;;
+esac

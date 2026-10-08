@@ -1,0 +1,23 @@
+diff -ruN a/lib/naming.sh b/lib/naming.sh
+--- a/lib/naming.sh	2026-10-09 02:24:32.839566397 +0900
++++ b/lib/naming.sh	2026-10-09 02:24:32.842196948 +0900
+@@ -1,14 +1,17 @@
+ # naming.sh — remote file names for settlement files.
+ #
+ #   HBP_SETTLE_<partner>_<YYYYMMDD>.csv          one file for the day
+-#   HBP_SETTLE_<partner>_<YYYYMMDD>_<n>.csv      day split into several parts
++#   HBP_SETTLE_<partner>_<YYYYMMDD>-<n>.csv      day split into several parts
++#
++# The transfer service parks (never delivers) names with four or more '_',
++# so the part number must not add another '_' field.
+ 
+ # settle_name PARTNER DATE PART PARTS
+ settle_name() {
+   local partner=$1 date=$2 part=$3 parts=$4
+   local base="${FILE_PREFIX}_${partner}_${date}"
+   if [ "$parts" -gt 1 ]; then
+-    base="${base}_${part}"
++    base="${base}-${part}"
+   fi
+   printf '%s.%s' "$base" "$FILE_EXT"
+ }

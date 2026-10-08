@@ -1,0 +1,41 @@
+diff -ruN a/src/infra/PtsctlClient.java b/src/infra/PtsctlClient.java
+--- a/src/infra/PtsctlClient.java	2026-10-09 02:33:27.040755375 +0900
++++ b/src/infra/PtsctlClient.java	2026-10-09 02:33:27.081009565 +0900
+@@ -26,11 +26,11 @@
+ 
+     /** Credits points to a member; returns the vendor entry number. */
+     public String earn(String memberNo, long points, String ref) {
+-        return run(List.of("earn", "--mbr", memberNo, "--pt", Long.toString(points), "--ref", ref)).strip();
++        return run(List.of("earn", "--mbr", mbr(memberNo), "--pt", Long.toString(points), "--ref", ref)).strip();
+     }
+ 
+     public long balance(String memberNo) {
+-        String out = run(List.of("bal", memberNo)).strip();
++        String out = run(List.of("bal", mbr(memberNo))).strip();
+         String[] t = out.split("\\s+");
+         if (t.length != 2) throw new PtsException("unexpected bal reply: " + out);
+         return Long.parseLong(t[1]);
+@@ -38,7 +38,7 @@
+ 
+     public List<HistoryRow> history(String memberNo) {
+         List<HistoryRow> rows = new ArrayList<>();
+-        for (String line : run(List.of("hist", memberNo)).split("\n")) {
++        for (String line : run(List.of("hist", mbr(memberNo))).split("\n")) {
+             if (line.isBlank()) continue;
+             String[] f = line.split("\t");
+             if (f.length != 3) throw new PtsException("unexpected hist line: " + line);
+@@ -47,6 +47,14 @@
+         return rows;
+     }
+ 
++    /**
++     * Member number as the vendor must read it. A bare all-digit number is read as a number by
++     * `earn` (leading zeros dropped: 004512 is credited to 4512); the @ form keeps it as issued.
++     */
++    static String mbr(String memberNo) {
++        return "@" + memberNo;
++    }
++
+     private String run(List<String> args) {
+         List<String> cmd = new ArrayList<>();
+         cmd.add(bin.toString());

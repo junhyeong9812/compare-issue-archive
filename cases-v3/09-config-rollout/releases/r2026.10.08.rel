@@ -1,0 +1,6 @@
+# r2026.10.08 — api pool DB tuning (OPS-2291), batch fast-pay pilot, bat-02 debug logging
+@release r2026.10.08
+pool.api.db_pool_size     = 40
+pool.api.timeout_ms       = 2500
+pool.batch.feature_fastpay = on
+host.bat-02.log_level     = debug

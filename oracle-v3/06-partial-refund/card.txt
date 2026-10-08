@@ -1,0 +1,21 @@
+issue/pgsim/refund-batch-same-line
+카드: archive-v3/issue/pgsim/refund-batch-same-line/ (한빛페이 가상 아카이브, 실행 시 /tmp/cia-lib3/issue 로 복사)
+채택 근거: 카드의 규칙 = "pgsim refund는 한 배치 안에서 TID·금액·AUX가 모두 같은 줄을 첫 줄만 환불하고 나머지는 조용히 버린다 — exit 0, accepted = 파일 줄 수".
+  카드 사건(변형 A)은 정기배송 해지 회차 환불(AUX 없음, 월말 PG 정산 대사에서 발견), 변형 B는 묶음 배송 배송비(AUX=주문번호).
+  이번 케이스는 쇼핑몰 CS 부분 환불(같은 상품 2개 반품, AUX=주문번호 → 고객 문의로 발견)로, 원인 구조는 변형 B와 같고 서비스·증상·발견 경로가 다르다.
+근본 원인: src/infra/RefundFileWriter.java merchantRef — AUX(셋째 칸)를 주문번호로만 채워 같은 주문의 같은 가격 상품 줄이 한 배치에서 같은 줄이 된다.
+올바른 해결: merchantRef를 환불 단위(주문번호-상품 줄 번호)로 바꾼다(fix.patch). 매처도 같은 함수를 쓰므로 함께 맞는다.
+  대안(동등): 요청번호-줄 번호 등 줄마다 다른 결정적 값 — hidden 통과 확인.
+증상 파일: src/service/CustomerStatementService.java(PG txn 기준 환불액·줄 상태) · test/RefundE2ETest.java.
+  경로: RefundDeskApi.runRefunds → RefundBatchJob.run → RefundFileWriter.write/merchantRef → PgsimClient.refund → vendor/bin/pgsim,
+  결과 → PgsimClient.status → RefundResultMatcher.apply (빠진 줄은 SUBMITTED로 남음) → CustomerStatementService(PG txn).
+미끼:
+  1) src/service/DiscountAllocator.java — 쿠폰 배분(남는 원을 첫 최고가 줄에) — 같은 상품 줄 금액이 달라질 것처럼 보이나 무죄(시나리오 무쿠폰, 쿠폰 시에도 단위 테스트가 값 고정).
+  2) src/service/RefundBatchJob.java uniquePending — (주문, 줄) 기준 dedupe — 건을 버리는 코드처럼 보이나 키가 유일해 무죄.
+  3) src/util/Refs.java sanitize — 24자 초과 시 뒤 24자만 남김 — 충돌을 의심하게 하지만 주문번호 15자라 무죄.
+  4) src/service/RefundResultMatcher.java — TID·금액·참조로 행 매칭 — 의심스러우나 행을 1회씩만 써서 무죄(매칭 기준을 느슨하게 해도 PG 환불은 그대로 1건).
+hidden: 11월 다른 주문(같은 상품 3개 일괄 반품, 쿠폰 균등 배분된 같은 금액 2개, 3개 중 2개 먼저·1개 다음 날, 같은 주문 다른 요청 2건이 같은 배치,
+  단일 상품), 청크 3줄 설정(같은 상품 줄이 청크를 걸침), 샘플 주 재현, 반품 안 한 같은 상품 미환불을 vendor/bin/pgsim status/txn으로 직접 조회해
+  회차 배치 수 = 청크 수, 배치별 실제 RF 건수 = 보낸 줄 수·번호 중복 없음, 원거래 refunded/bal, 줄별 RF 번호가 PG에 실재하는지 검사.
+  우회 확인: 끝단 땜질(내역을 우리 장부로 계산 + 처리 중을 완료 표시 — test 통과/hidden 실패), 누락 줄을 별도 배치 번호로 재전송(test 통과/hidden 실패),
+  미끼 3종 수정(둘 다 실패), AUX 제거(둘 다 실패), 같은 TID 금액 합산 1줄(둘 다 실패), 대안 정답(요청번호-줄, 둘 다 통과).
