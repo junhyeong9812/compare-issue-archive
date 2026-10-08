@@ -151,7 +151,9 @@ def sandbox_env(sb_home: Path) -> dict:
 
 def audit(log_text: str, arm: str, run_id: str = "") -> list:
     # 다른 실행의 작업 폴더를 들여다본 흔적도 위반(동시 실행 간 오염)
-    other_runs = rf"cia-runs/(?!{re.escape(run_id)}\b)[\w.-]+" if run_id else r"cia-runs/[\w.-]+"
+    # 실행 ID 형태(NN-ARM-rN-ts)의 다른 실행 폴더만 위반. 공유 상위 폴더에 임시 파일을 쓰는 것(예: /tmp/cia-runs/run.log)은 열람이 아님
+    other_runs = (rf"cia-runs/(?!{re.escape(run_id)}\b)\d\d-[A-Z]-r\d+-\d+" if run_id
+                  else r"cia-runs/\d\d-[A-Z]-r\d+-\d+")
     pats = AUDIT_COMMON + [other_runs] + (AUDIT_B_ONLY if arm == "B" else [])
     # Claude Code 권한 가드의 거부 메시지가 deny 규칙 문자열을 인용하는 것은 접근 시도가 아니다(오탐 제거)
     log_text = re.sub(r"a deny rule \(//[^)]*\)", "a deny rule (<rule>)", log_text)
