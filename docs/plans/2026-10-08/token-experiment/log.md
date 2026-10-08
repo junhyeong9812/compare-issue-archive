@@ -19,3 +19,7 @@
 - A/B 토큰 차이 없음(중앙값 89.2k vs 88.0k, 비용 합 $2.39 vs $2.40). 원인은 아카이브 미활용 — 케이스가 작아 모델이 코드 전체를 한 번에 읽고 사전 지식으로 해결.
 - 산출: scripts/run_experiment.py(격리 HOME claude -p·deny 규칙·로그 감사·판정·토큰 되쓰기 가드), scripts/summarize.py, results/(runs.jsonl·raw 로그·summary·analysis).
 - 아카이브(CS 이슈): ① Ubuntu AppArmor `apparmor_restrict_unprivileged_userns=1`이 비특권 bwrap을 막음 ② 격리 HOME에서 실행하는 claude -p의 OAuth 갱신이 원본 토큰을 회전시킬 수 있는 위험 — study-note 카드 후보, 사용자 확인 후 아카이브(이번 범위 밖 → 보류, NEXT 등재).
+| 2026-10-08 | 추가 실험 합의(arm F archive-first, 1차 케이스 ×3). 러너에 F 프롬프트·card_tool_calls, summarize에 arm 동적 처리 추가 | 정규식 스모크 통과, 1차 summary 재생성 동일 수치 |
+| 2026-10-08 | F 30회 완료: 유효 27·무효 3(03 r1·05 r2·10 r2) — 감사 오탐: Claude Code 권한 가드 거부 메시지가 deny 규칙 문자열을 인용(접근 시도 아님) | audit()에서 가드 메시지 내 규칙 문자열 마스킹 + 실접근은 계속 검출(단위 확인). 무효 3행은 보존, 3건 재실행 |
+| 2026-10-08 | F 재실행 3건 유효·성공. 최종 F 30/30 유효·성공, 총 토큰 중앙값 153,163(B 88,020), 비용 합 $3.80(B $2.40) | summary 재생성 |
+| 2026-10-08 | 손 검산: F 카드 분류 정답 10·엉뚱 3·없음 17 = 30. README 499줄/65,793B를 F 30회 전부가 열람 | ADR-0001·analysis에 추가 실험 append, ADR-0002 개정 append(arm B/F/A′) |
