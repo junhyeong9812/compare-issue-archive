@@ -70,8 +70,9 @@ def main():
             per[arm] = m
             lines.append(f"| {c} | {arm} | {m['n']} | {m['succ']}/{m['n']} | {fmt(m['tok'])} | {fmt(m['out'])} | "
                          f"{fmt(m['cost'], 3)} | {fmt(m['turns'])} | {fmt(m['tools'])} | {fmt(m['web'])} | {fmt(m['arch'])} | {m['cards']}/{m['n']} |")
-        ratio_rows.append((c, [(a, ratio(per[a]["tok"], per["B"]["tok"]), ratio(per[a]["cost"], per["B"]["cost"]),
-                                ratio(per[a]["turns"], per["B"]["turns"])) for a in arms if a != "B"]))
+        if "B" in per:  # B가 없는 결과 디렉터리(추가 arm 단독 실행)는 ÷B 비율 생략
+            ratio_rows.append((c, [(a, ratio(per[a]["tok"], per["B"]["tok"]), ratio(per[a]["cost"], per["B"]["cost"]),
+                                    ratio(per[a]["turns"], per["B"]["turns"])) for a in arms if a != "B"]))
 
     lines += ["", "## 케이스별 ÷B 비율 (중앙값 기준, A=스스로 찾기 · F=아카이브 우선 · P=정답 카드 제공 · L=결론 요약 제공)", "",
               "| 케이스 | arm | 총 토큰 | 비용 | 턴 |", "|---|---|---|---|---|"]
