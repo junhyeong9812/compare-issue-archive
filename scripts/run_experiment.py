@@ -163,13 +163,18 @@ def parse_log(log_path: Path) -> dict:
            "first_edit_turn": None, "archive_result_bytes": 0}
     turn = 0
     archive_ids = set()
+    seen_msgs = set()
     for line in log_path.read_text(errors="replace").splitlines():
         try:
             ev = json.loads(line)
         except json.JSONDecodeError:
             continue
         if ev.get("type") == "assistant":
-            turn += 1
+            # stream-json 은 한 응답의 content 블록마다 assistant 이벤트를 내므로 message id 단위로 턴을 센다
+            mid = ev.get("message", {}).get("id")
+            if mid not in seen_msgs:
+                seen_msgs.add(mid)
+                turn += 1
             for blk in ev.get("message", {}).get("content", []) or []:
                 if blk.get("type") in ("tool_use", "server_tool_use"):
                     out["tool_calls"] += 1
