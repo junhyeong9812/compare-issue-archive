@@ -83,9 +83,11 @@ static int fail(int code) {
 }
 
 static void usage(FILE *f) {
-    fputs("usage: fxq rate <PAIR> <YYYY-MM-DD> [--fix]\n"
+    fputs("usage: fxq rate <PAIR> <YYYY-MM-DD> [--src N]\n"
           "       fxq pairs\n"
-          "       fxq --version\n", f);
+          "       fxq --version\n"
+          "options:\n"
+          "  --src N   quote source 0..3 (default 0)\n", f);
 }
 
 int main(int argc, char **argv) {
@@ -99,9 +101,14 @@ int main(int argc, char **argv) {
     if (strcmp(argv[1], "rate")) return fail(11);
 
     const char *pair = NULL, *date = NULL;
-    int fix = 0;
+    int src = 0;
     for (int i = 2; i < argc; i++) {
-        if (!strcmp(argv[i], "--fix")) fix = 1;
+        if (!strcmp(argv[i], "--src")) {
+            if (i + 1 >= argc) return fail(11);
+            const char *n = argv[++i];
+            if (strlen(n) != 1 || n[0] < '0' || n[0] > '3') return fail(15);
+            src = n[0] - '0';
+        }
         else if (!pair) pair = argv[i];
         else if (!date) date = argv[i];
         else return fail(11);
@@ -117,19 +124,25 @@ int main(int argc, char **argv) {
 
     long v;
     int lag = 0;
+    long mid; /* reference value for sources 1..3 */
     if (open_day(z)) {
         v = base_val(p, z);
+        mid = v;
     } else {
         long a = z - 1, b = z + 1;
         while (!open_day(a)) a--;
         while (!open_day(b)) b++;
-        if (fix) {
-            long adj = (long)(mix(p, z, 0x5f3759dfUL) % 41) - 20;
-            v = (base_val(p, a) + base_val(p, b)) / 2 + adj;
-        } else {
-            v = base_val(p, a);
-            lag = (int)(z - a);
-        }
+        long adj = (long)(mix(p, z, 0x5f3759dfUL) % 41) - 20;
+        mid = (base_val(p, a) + base_val(p, b)) / 2 + adj;
+        v = base_val(p, a);
+        lag = (int)(z - a);
+    }
+    if (src != 0) {
+        unsigned long r = (unsigned long)(SPAN[p] / 5 + 1);
+        long w1 = SPAN[p] / 5 + (long)(mix(p, z, 0x9e3779b9UL) % r);
+        long w2 = SPAN[p] / 5 + (long)(mix(p, z, 0x7f4a7c15UL) % r);
+        v = src == 1 ? mid - w1 : src == 2 ? mid + w2 : mid;
+        lag = 0;
     }
     if (lag) printf("%s %s %ld.%02ld ~%d\n", pair, date, v / 100, v % 100, lag);
     else printf("%s %s %ld.%02ld\n", pair, date, v / 100, v % 100);

@@ -1,16 +1,18 @@
 issue/fxq/tilde-quote-requery
 카드: archive-v3/issue/fxq/tilde-quote-requery/ (한빛페이 가상 아카이브)
-블랙박스 규칙: fxq rate PAIR DATE 는 벤더 휴장일(토·일 + 내장 휴장 목록: 2026 공휴일·대체공휴일·12/31)에 exit 0으로
-  직전 벤더 영업일 값을 그대로 내며 줄 끝에 "~N"(N = 직전 영업일로부터 일수)을 붙인다. 정산 기준값은 같은 날짜를 --fix로
-  재조회해야 나오고(휴장일: 벤더 산출값 = (앞뒤 영업일 평균) + 날짜별 해시 보정, 영업일: 일반 조회와 같은 값), 사내 계산으로 재현되지 않는다.
+블랙박스 규칙(재설계 v2): fxq rate PAIR DATE [--src N] 의 기본 소스 0은 벤더 휴장일(토·일 + 내장 휴장 목록: 2026 공휴일·대체공휴일·12/31)에
+  exit 0으로 직전 벤더 영업일 값을 그대로 내며 줄 끝에 "~N"(N = 직전 영업일로부터 일수)을 붙인다. 정산 기준값은 같은 날짜를 --src 3으로
+  재조회해야 나온다(휴장일: (앞뒤 영업일 평균) + 날짜별 해시 보정, 영업일: 소스 0과 같은 값). 소스 1·2는 기준값에서 비대칭 해시 폭만큼
+  아래/위로 벌어진 값(영업일에도 다름, 꼬리표 없음)이라 혼동용. help는 "--src N   quote source 0..3 (default 0)"뿐이다.
+  (1차 설계 --fix는 파일럿에서 옵션 이름이 답을 알려 B가 1회 만에 풀어 재설계 — B 170,874 / L 153,184 = 1.12)
 채택 근거: 카드 변형 A(꼬리표를 버리는 파서 → 이월 값으로 평가)를 정산 도메인으로 옮긴 같은 원인의 다른 사건.
   카드 사건 = 외화지갑 일일 외화평가(8/15~8/17 광복절 연휴, 회계 원장과 평가손익 차이).
   케이스 사건 = 해외카드 파트너 정산(10/03~10/05 개천절 연휴, 파트너 명세와 gross 차이). 서비스·증상·날짜·통화가 다르다.
-  카드 변형 B(요일 재구현)·C(전역 --fix → 표시 회귀)가 케이스의 우회 함정(visible 10/05 대체공휴일, 환율판 테스트)과 대응한다.
+  카드 변형 B(요일 재구현)·C(소스 1·2 오선택)·D(공용 조회에 --src 3 → 표시 회귀)가 케이스의 우회 함정(visible 10/05 대체공휴일, 환율판 테스트)과 대응한다.
 근본 원인: src/infra/FxqClient.java parse()가 응답 4번째 칸(~N)을 버리고, src/service/RateService.java settlementRate()가
   일반 조회 값(이월 값)을 그대로 정산에 쓴다.
-올바른 해결: parse가 ~N을 FxQuote.lagged로 보존하고, settlementRate가 lagged면 같은 날짜를 --fix로 재조회(별도 캐시).
-  대안(동등): settlementRate만 항상 --fix 조회. 환율판(quote) 경로는 일반 조회 유지.
+올바른 해결: parse가 ~N을 FxQuote.lagged로 보존하고, settlementRate가 lagged면 같은 날짜를 --src 3으로 재조회(FxqClient.settlementQuote, 별도 캐시).
+  대안(동등): settlementRate만 항상 --src 3 조회. 환율판(quote) 경로는 일반 조회 유지.
 증상 파일: src/api/SettlementApi.java reconcile/daily → src/api/ReportFormatter.java(MISMATCH 출력), test/SettlementE2ETest.java.
   경로: SettlementApi → SettlementService.convert → RateService.settlementRate → FxqClient.rate/parse → vendor/bin/fxq.
 미끼:

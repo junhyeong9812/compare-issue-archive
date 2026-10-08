@@ -13,25 +13,28 @@
 +public record FxQuote(String pair, LocalDate date, BigDecimal rate, boolean lagged) {}
 --- a/src/infra/FxqClient.java
 +++ b/src/infra/FxqClient.java
-@@ -24,21 +24,32 @@
+@@ -24,21 +24,35 @@
  
      /** Raw stdout line for {@code fxq rate PAIR DATE}. */
      public String rate(String pair, LocalDate date) {
 +        return rate(pair, date, false);
 +    }
 +
-+    /** Raw stdout line for {@code fxq rate PAIR DATE --fix} (settlement value). */
-+    public String fixing(String pair, LocalDate date) {
++    /** Raw stdout line for {@code fxq rate PAIR DATE --src 3} (settlement source). */
++    public String settlementQuote(String pair, LocalDate date) {
 +        return rate(pair, date, true);
 +    }
 +
-+    private String rate(String pair, LocalDate date, boolean fix) {
++    private String rate(String pair, LocalDate date, boolean settlementSource) {
          List<String> cmd = new ArrayList<>();
          cmd.add(bin.toString());
          cmd.add("rate");
          cmd.add(pair);
          cmd.add(date.toString());
-+        if (fix) cmd.add("--fix");
++        if (settlementSource) {
++            cmd.add("--src");
++            cmd.add("3");
++        }
          return run(cmd);
      }
  
@@ -54,7 +57,7 @@
  public class RateService {
      private final FxqClient client;
      private final Map<String, FxQuote> cache = new HashMap<>();
-+    private final Map<String, FxQuote> fixings = new HashMap<>();
++    private final Map<String, FxQuote> settledQuotes = new HashMap<>();
      private int vendorCalls;
  
      public RateService(FxqClient client) {
@@ -66,16 +69,16 @@
 +    /**
 +     * Rate applied to card transactions of the given KST settlement date.
 +     * A lagged quote (trailing ~N) repeats an earlier day's value and must not be settled with;
-+     * the vendor's --fix value for that date is used instead.
++     * the vendor's source-3 value for that date is used instead.
 +     */
      public BigDecimal settlementRate(String currency, LocalDate date) {
 -        return quote(currency, date).rate();
 +        FxQuote q = quote(currency, date);
 +        if (!q.lagged()) return q.rate();
 +        String pair = CurrencyPairs.pairOf(currency);
-+        return fixings.computeIfAbsent(pair + "@" + date, k -> {
++        return settledQuotes.computeIfAbsent(pair + "@" + date, k -> {
 +            vendorCalls++;
-+            return FxqClient.parse(client.fixing(pair, date));
++            return FxqClient.parse(client.settlementQuote(pair, date));
 +        }).rate();
      }
  
