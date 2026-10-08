@@ -170,6 +170,9 @@ def audit(log_text: str, arm: str, run_id: str = "") -> list:
     pats = AUDIT_COMMON + [other_runs] + (AUDIT_B_ONLY if arm in ("B", "L") else [])
     # Claude Code 권한 가드의 거부 메시지가 deny 규칙 문자열을 인용하는 것은 접근 시도가 아니다(오탐 제거)
     log_text = re.sub(r"a deny rule \(//[^)]*\)", "a deny rule (<rule>)", log_text)
+    # 실행 안 Claude Code가 자기 백그라운드 작업 출력을 두는 경로(/tmp/claude-<uid>/-tmp-cia-runs-<자기 run_id>-work/...)는 열람이 아님
+    if run_id:
+        log_text = re.sub(rf"/tmp/claude-\d+/-tmp-cia-runs-{re.escape(run_id)}-work/", "<own-task-dir>/", log_text)
     return sorted({p for p in pats if re.search(p, log_text)})
 
 
