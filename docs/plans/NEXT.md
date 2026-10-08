@@ -2,5 +2,5 @@
 
 | 우선순위 | 후보 | 메모 |
 |---|---|---|
-| 1 | 토큰 비교 실험 (A: 카드 제공 / B: 직접 조사) | `claude -p --output-format json`. 결정할 것: B의 study-note 접근 차단, 전역 CLAUDE.md·훅 영향 통제, 케이스당 반복 횟수, A 변형(카드 직접 vs issue/ 인덱스 검색), 성공 판정 = hidden.sh 통과 |
-| 2 | 케이스 난이도 점검 | 신호: 두 arm 모두 1~2턴에 해결하면 차이가 안 난다 → 대체 후보(ordering-total-order·silent-truncation-marker·in-band-signaling-collision)로 보강 |
+| 1 | 2차 실험: 아카이브가 필요한 조건 만들기 | 1차 결과 A≈B(카드 열람 0회). 후보: 큰 코드베이스·원인과 증상 분리 / B가 실패하는 덜 알려진 문제 / Haiku / A'(카드 직접 제공) arm 추가 — results/analysis.md |
+| 2 | 보류·이월: issue 아카이브 카드 2건 | AppArmor 비특권 userns로 bwrap 차단, 격리 HOME claude -p의 OAuth 토큰 회전 위험. 재개 조건: 사용자 범위 확인 |
