@@ -1,0 +1,18 @@
+diff -ruN a/src/AuthController.java b/src/AuthController.java
+--- a/src/AuthController.java	2026-10-08 12:17:34.881204026 +0900
++++ b/src/AuthController.java	2026-10-08 12:17:34.921694279 +0900
+@@ -32,6 +32,13 @@
+     }
+ 
+     static Long parseSiteId(String header) {
+-        return Long.valueOf(header);
++        if (header == null) {
++            return null;
++        }
++        try {
++            return Long.valueOf(header.trim());
++        } catch (NumberFormatException e) {
++            return null;
++        }
+     }
+ }

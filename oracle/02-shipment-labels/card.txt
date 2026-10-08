@@ -1,0 +1,6 @@
+카드: /home/jun/project/study-note/issue/cross-cutting/concurrency/single-writer-ownership
+채택 사건: 질문 2 / 정답 2 / 변형 A (주기 전체 overwrite 스레드 vs 필드 writer) — lost update, 결정적 인터리빙(래치 게이트)으로 재현
+  인용: "폴링 스레드는 자기 메모리 모델(그 필드를 모름 = None)로 본문 전체를 다시 쓴다. 그래서 추가된 필드는 다음 tick(최대 150ms 뒤)에 지워지고"
+  인용: "\"저장 전에 기존 값을 load해 보존\"은 창을 좁힐 뿐이다 — load와 save 사이에 다른 writer의 쓰기가 끼면 여전히 옛 값으로 덮인다."
+근본 원인: 동기화 스레드와 태그 저장이 같은 저장 단위(shipment:<id>)를 락 없이 load→수정→전체 save 하므로, 사이에 낀 상대 쓰기가 옛 값으로 덮인다(양방향 lost update). 버그 코드는 이미 "load해서 label 보존" 1차 대응이 들어간 상태.
+올바른 해결: writer별 저장 단위 분리(상태 레코드는 동기화 단독, 태그는 별도 키 — load가 병합) 또는 모든 writer가 같은 락 안에서 RMW. hidden은 save 직전 정지 게이트로 "쓰기 직전 재조회" 땜질을 잡는다(직접 확인: 재조회 땜질 = visible 통과·hidden 실패, synchronized update 대안 = 둘 다 통과).

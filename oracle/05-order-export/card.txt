@@ -1,0 +1,6 @@
+카드: /home/jun/project/study-note/issue/cross-cutting/data/pagination-cursor-integrity/
+채택 사건: 3-answer.md 정답 5 / 변형 C
+  "keyset 스캔이 n 개를 읽어도, 뒤 단계의 삭제 필터가 일부를 떨구면 결과는 n 개보다 적다. 이걸 "마지막 페이지"로 판정하면, 삭제 행이 몰린 윈도우에서 뒤에 남은 데이터 전부를 버리고 종료한다."
+  "커서 전진(다음 `last`)과 종료 판정은 스캔한 키 윈도우(마지막으로 스캔한 키·스캔 건수)에서 나와야 한다."
+근본 원인: list_orders가 종료(next_after=None)와 다음 위치를 삭제 필터 이후의 items 개수·마지막 id로 판정해, 삭제 행이 섞인 윈도우에서 조기 종료한다.
+올바른 해결: 종료는 스캔한 rows 건수(len(rows) < limit), 다음 위치는 마지막으로 스캔한 rows[-1].id로 정한다(필터는 반환 항목에만). (대안: 삭제 조건을 SQL WHERE로 내려 스캔=결과로 만드는 것도 정답)

@@ -1,0 +1,6 @@
+카드: /home/jun/project/study-note/issue/cross-cutting/reliability/atomic-file-replace/
+채택 사건: 3-answer.md 정답 1 / 변형 A (덮어쓰기로 저장)
+  "`write(path)`·`open(path,'w')`는 파일을 먼저 truncate(0바이트로 비움)한 뒤 새 내용을 쓴다."
+  "쓰는 도중 크래시·`ENOSPC`가 나면 원본은 이미 사라졌고 새 내용은 일부만 들어간 "이전도 새것도 아닌" 파일이 남는다"
+근본 원인: save()가 정본 경로를 open(path, "w")로 열어 즉시 truncate한 뒤 행을 쓰므로, 도중의 예외(검증 거절·쓰기 실패)가 절단 파일을 남긴다.
+올바른 해결: 같은 디렉터리의 유니크 temp 파일에 전부 쓴 뒤 os.replace(tmp, path)로 원자 교체하고, 실패 시 temp 삭제. (hidden은 "직렬화 먼저 → open('w')" 우회를 RLIMIT_FSIZE 쓰기 실패로 잡는다)

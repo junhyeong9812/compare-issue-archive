@@ -1,0 +1,15 @@
+--- a/orders.py	2026-10-08 12:18:01.954090938 +0900
++++ b/orders.py	2026-10-08 12:18:01.988875745 +0900
+@@ -39,10 +39,10 @@
+         for r in rows
+         if _visible(r)
+     ]
+-    if len(items) < limit:
++    if len(rows) < limit:
+         next_after = None
+     else:
+-        next_after = items[-1]["id"]
++        next_after = rows[-1]["id"]
+     return items, next_after
+ 
+ 

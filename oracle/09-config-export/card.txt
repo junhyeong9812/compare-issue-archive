@@ -1,0 +1,7 @@
+카드: issue/cross-cutting/data/float-nan-semantics
+채택 사건: 변형 B — 코드 생성에서 특수값을 리터럴로 출력 + "고칠 때의 함정"(== 로 NaN 탐지)
+  인용(3-answer.md 정답 3): "`v == Float.NaN` 분기는 어떤 입력에서도 실행되지 않는다. v가 NaN이어도 NaN == NaN이 false이기 때문이다. 특수값 탐지는 `Float.isNaN(v)`처럼 전용 판정 함수로 한다."
+  인용(3-answer.md 변형 B): "고칠 때의 함정: if (f == Float.NaN) { ... }  → NaN == NaN 이 false라 영원히 미도달" / "탐지를 ==로 쓰면 NaN만 다시 새어 나간다"
+근본 원인: writer.ts writeNumber 의 `n === Number.NaN` 비교가 NaN 반사성 부재로 항상 false 라 NaN 이 String(n) 폴백("NaN")으로 빠져 리더 문법 밖의 토큰이 출력된다(±Infinity 는 === 가 정상이라 동작).
+올바른 해결: `Number.isNaN(n)` 으로 탐지해 유한값 폴백보다 앞에서 상수 참조 `Float.NaN` 을 출력한다.
+hidden: reader.ts 를 원본으로 덮어써 리더 완화 우회를 차단하고, sqrt(-1)·parseFloat·inf-inf 등 다른 NaN 생성원·중첩 목록·정확한 출력 텍스트·다수 엔트리 왕복 검사.

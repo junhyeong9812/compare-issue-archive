@@ -1,0 +1,33 @@
+--- a/inventory.py	2026-10-08 12:18:33.805860149 +0900
++++ b/inventory.py	2026-10-08 12:18:33.836184406 +0900
+@@ -1,5 +1,6 @@
+ """Warehouse stock file: one line per SKU, `sku,qty,unit_price`."""
+ import os
++import tempfile
+ 
+ 
+ class InvalidItem(ValueError):
+@@ -33,6 +34,20 @@
+         return items
+ 
+     def save(self, items):
+-        with open(self.path, "w", encoding="utf-8") as f:
+-            for item in items:
+-                f.write(_format_row(item))
++        directory = os.path.dirname(os.path.abspath(self.path))
++        fd, tmp = tempfile.mkstemp(
++            dir=directory, prefix="." + os.path.basename(self.path) + ".", suffix=".tmp"
++        )
++        try:
++            with os.fdopen(fd, "w", encoding="utf-8") as f:
++                for item in items:
++                    f.write(_format_row(item))
++                f.flush()
++                os.fsync(f.fileno())
++            os.replace(tmp, self.path)
++        except BaseException:
++            try:
++                os.unlink(tmp)
++            except FileNotFoundError:
++                pass
++            raise

@@ -1,0 +1,6 @@
+카드: /home/jun/project/study-note/issue/python/language-and-stdlib-traps/
+채택 사건: 3-answer.md 정답 1 / 변형 A
+  "`nxt in "ei"`는 부분문자열 검사이고 빈 문자열은 모든 문자열의 부분문자열이라, "다음 모음 없음"을 `""`로 표현하면 조건이 항상 참이 된다."
+  "단일 문자 멤버십은 튜플 `nxt in ("e", "i")`로 쓴다 ... 이 패턴은 한 곳을 고친 뒤 같은 패턴 6곳을 전수 수정했다."
+근본 원인: 단어 끝에서 다음 글자를 ""로 표현하는데 `"" in "ei"`(부분문자열 검사)가 항상 True라 c/g/sc 가 단어 끝에서 연음(soft)으로 처리된다.
+올바른 해결: 문자열 대신 원소 집합(튜플/frozenset)으로 멤버십 검사 — `FRONT_VOWELS = ("e", "i")` (c/g 분기와 sc 분기 두 사용처 모두 교정됨).

@@ -1,0 +1,20 @@
+--- a/orderService.ts	2026-10-08 12:17:42.062222205 +0900
++++ b/orderService.ts	2026-10-08 12:17:42.064915129 +0900
+@@ -36,7 +36,7 @@
+   async submit(order: Order): Promise<Result> {
+     try {
+       validate(order);
+-      return this.http
++      return await this.http
+         .post("/orders", order)
+         .then((res) => ({ ok: true, id: res.id }));
+     } catch (e) {
+@@ -47,7 +47,7 @@
+   async cancel(orderId: string): Promise<Result> {
+     try {
+       if (!orderId) throw new Error("orderId is required");
+-      return this.http
++      return await this.http
+         .post(`/orders/${orderId}/cancel`, {})
+         .then(() => ({ ok: true, id: orderId }));
+     } catch (e) {

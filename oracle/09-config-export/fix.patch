@@ -1,0 +1,11 @@
+--- a/writer.ts	2026-10-08 12:20:32.557228441 +0900
++++ b/writer.ts	2026-10-08 12:20:32.560246006 +0900
+@@ -6,7 +6,7 @@
+ }
+ 
+ function writeNumber(n: number): string {
+-  if (n === Number.NaN) return "Float.NaN";
++  if (Number.isNaN(n)) return "Float.NaN";
+   if (n === Number.POSITIVE_INFINITY) return "Float.POSITIVE_INFINITY";
+   if (n === Number.NEGATIVE_INFINITY) return "Float.NEGATIVE_INFINITY";
+   return String(n);

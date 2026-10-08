@@ -1,0 +1,66 @@
+diff -ruN a/src/CarrierSync.java b/src/CarrierSync.java
+--- a/src/CarrierSync.java	2026-10-08 12:19:06.709868309 +0900
++++ b/src/CarrierSync.java	2026-10-08 12:19:06.747301416 +0900
+@@ -16,8 +16,7 @@
+     public void tick() {
+         for (String id : trackedIds) {
+             String status = carrierStatus.apply(id);
+-            Shipment current = repository.load(id);
+-            repository.save(current.withStatus(status));
++            repository.saveStatus(id, status);
+         }
+     }
+ }
+diff -ruN a/src/LabelService.java b/src/LabelService.java
+--- a/src/LabelService.java	2026-10-08 12:19:06.709927467 +0900
++++ b/src/LabelService.java	2026-10-08 12:19:06.747551920 +0900
+@@ -10,7 +10,6 @@
+         if (label != null && (label.contains("\t") || label.contains("\n"))) {
+             throw new IllegalArgumentException("label must be a single line");
+         }
+-        Shipment current = repository.load(id);
+-        repository.save(current.withLabel(label));
++        repository.saveLabel(id, label);
+     }
+ }
+diff -ruN a/src/ShipmentRepository.java b/src/ShipmentRepository.java
+--- a/src/ShipmentRepository.java	2026-10-08 12:19:06.709807540 +0900
++++ b/src/ShipmentRepository.java	2026-10-08 12:19:06.716588696 +0900
+@@ -1,5 +1,6 @@
+ public class ShipmentRepository {
+     private static final String PREFIX = "shipment:";
++    private static final String LABEL_SUFFIX = ":label";
+ 
+     private final KeyValueStore store;
+ 
+@@ -8,17 +9,21 @@
+     }
+ 
+     public Shipment load(String id) {
+-        String raw = store.get(PREFIX + id);
+-        if (raw == null) {
+-            return new Shipment(id, "UNKNOWN", null);
++        String status = store.get(PREFIX + id);
++        String label = store.get(PREFIX + id + LABEL_SUFFIX);
++        if (label != null && label.isEmpty()) {
++            label = null;
+         }
+-        String[] parts = raw.split("\t", -1);
+-        String label = parts[1].isEmpty() ? null : parts[1];
+-        return new Shipment(id, parts[0], label);
++        return new Shipment(id, status == null ? "UNKNOWN" : status, label);
+     }
+ 
+-    public void save(Shipment shipment) {
+-        String label = shipment.label() == null ? "" : shipment.label();
+-        store.put(PREFIX + shipment.id(), shipment.status() + "\t" + label);
++    /** Owned by the carrier sync: only the status record is written here. */
++    public void saveStatus(String id, String status) {
++        store.put(PREFIX + id, status);
++    }
++
++    /** Owned by the operator UI: the label lives in its own record so status writes never touch it. */
++    public void saveLabel(String id, String label) {
++        store.put(PREFIX + id + LABEL_SUFFIX, label == null ? "" : label);
+     }
+ }

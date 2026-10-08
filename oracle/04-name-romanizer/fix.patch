@@ -1,0 +1,11 @@
+--- a/romanizer.py	2026-10-08 12:17:33.000584237 +0900
++++ b/romanizer.py	2026-10-08 12:17:33.007088997 +0900
+@@ -5,7 +5,7 @@
+ 
+ SOFT = {"c": "ch", "g": "j"}
+ HARD = {"c": "k", "g": "g"}
+-FRONT_VOWELS = "ei"
++FRONT_VOWELS = ("e", "i")
+ 
+ 
+ def _next(word, i):

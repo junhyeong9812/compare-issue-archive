@@ -1,0 +1,7 @@
+카드: issue/cross-cutting/reliability/debounce-trailing-contract
+채택 사건: 변형 A — trailing 플러시가 변화 게이트 뒤에 있음 (+ 실패 시 dirty 해제)
+  인용(3-answer.md 정답 2): "변화 없는 틱은 `continue`로 루프 앞으로 돌아가므로 그 뒤의 플러시에 영영 도달하지 못한다."
+  인용(3-answer.md 정답 3): "저장 실패에도 `dirty = false`로 내리면 ... 재시도 기회를 잃는다 ... `last_save`는 성공·실패와 무관하게 갱신(재시도 간격 유지), `dirty`는 성공했을 때만 내린다."
+근본 원인: DraftAutosaver.tick() 의 저장(flush) 블록이 fingerprint 동일 시 return 하는 변화 게이트 뒤에 있어 변경이 멎은 뒤에는 보류분이 저장되지 않고, 저장 실패 시에도 dirty 를 내려 재시도가 사라진다.
+올바른 해결: flush 를 매 틱(변화 게이트 앞)에서 실행되게 옮기고, lastSave 는 시도마다 갱신하되 dirty 는 write 성공 시에만 내린다.
+hidden: 다른 간격(500/300/200/400ms)·틱(50/10/20ms)·다중 burst·연속 실패 재시도 간격(핫루프 금지)·유휴 시 중복 쓰기 없음·실패 후 최신 텍스트 우선.

@@ -1,0 +1,7 @@
+카드: issue/typescript/js-language-traps
+채택 사건: 변형 D 첫 줄 (await 없는 return)
+  인용(3-answer.md 정답 4): "`return api.post(...)`는 pending promise를 그대로 반환하고 try 블록은 즉시 끝난다. reject는 그 뒤에 일어나므로 이 함수의 catch가 아니라 호출부로 전파된다."
+  인용(2-summary.md): "async 함수의 try 안에서 await 없이 반환한 promise의 reject는 catch를 지나친다 — `return await`."
+근본 원인: OrderService.submit/cancel 이 try 안에서 http.post(...) promise 를 await 없이 return 해, 비동기 reject 가 try 종료 후 발생하여 catch(fail 기록)를 우회하고 호출부로 throw 된다(동기 검증 오류는 catch 되므로 일부만 동작).
+올바른 해결: submit·cancel 두 곳 모두 `return await this.http.post(...)` (또는 동등하게 promise 체인 안에서 reject 처리)로 reject 를 이 함수의 try/catch 안에서 받는다.
+hidden: cancel 경로·지연 reject·비-Error reject·연속 실패 기록 순서로 같은 불변식 검사(submit 만 고치면 실패).

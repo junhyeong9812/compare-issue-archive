@@ -1,0 +1,6 @@
+카드: /home/jun/project/study-note/issue/cross-cutting/data/time-semantics
+채택 사건: 질문 6 / 정답 6 / 변형 D (닫힌 구간으로 버킷 분할)
+  인용: "`BETWEEN` 은 양 끝을 포함한다. 5월 1일 버킷을 `BETWEEN 5/1 00:00 AND 5/2 00:00` 로 잡으면 5/2 00:00:00 행이 5/1 과 5/2 두 버킷에 모두 들어간다."
+  인용: "표준 형태는 반열린 구간 `[from, toExclusive)` — `ts >= from AND ts < toExclusive`, `toExclusive = to 다음날 자정`."
+근본 원인: 리포지토리 조회가 양 끝 포함(닫힌 구간)인데 서비스가 끝 경계로 익일 00:00을 넘겨, 자정 정각 주문이 인접 두 날(및 인접 기간)에 이중 집계된다.
+올바른 해결: 조회를 반열린 구간 [start, endExclusive) 로 바꾼다(createdAt >= start && createdAt < endExclusive). hidden은 23:59:59.5·마지막 나노초·월 경계로 "끝에서 1초 빼기" 땜질을 잡는다(직접 확인: minusSeconds(1) 땜질 = visible 통과·hidden 7건 실패).

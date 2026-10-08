@@ -1,0 +1,31 @@
+diff -ruN a/src/OrderRepository.java b/src/OrderRepository.java
+--- a/src/OrderRepository.java	2026-10-08 12:20:58.313430802 +0900
++++ b/src/OrderRepository.java	2026-10-08 12:20:58.348898481 +0900
+@@ -9,10 +9,11 @@
+         orders.add(order);
+     }
+ 
+-    public List<Order> findCreatedIn(LocalDateTime start, LocalDateTime end) {
++    /** Orders with {@code start <= createdAt < endExclusive}. */
++    public List<Order> findCreatedIn(LocalDateTime start, LocalDateTime endExclusive) {
+         List<Order> result = new ArrayList<>();
+         for (Order o : orders) {
+-            if (!o.createdAt().isBefore(start) && !o.createdAt().isAfter(end)) {
++            if (!o.createdAt().isBefore(start) && o.createdAt().isBefore(endExclusive)) {
+                 result.add(o);
+             }
+         }
+diff -ruN a/src/SalesReportService.java b/src/SalesReportService.java
+--- a/src/SalesReportService.java	2026-10-08 12:20:58.313360326 +0900
++++ b/src/SalesReportService.java	2026-10-08 12:20:58.349128084 +0900
+@@ -25,8 +25,8 @@
+         return sum(from.atStartOfDay(), to.plusDays(1).atStartOfDay());
+     }
+ 
+-    private long sum(LocalDateTime start, LocalDateTime end) {
+-        List<Order> orders = repository.findCreatedIn(start, end);
++    private long sum(LocalDateTime start, LocalDateTime endExclusive) {
++        List<Order> orders = repository.findCreatedIn(start, endExclusive);
+         long total = 0;
+         for (Order o : orders) {
+             total += o.amountCents();

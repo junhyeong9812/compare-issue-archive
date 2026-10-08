@@ -1,0 +1,27 @@
+--- a/backup.sh	2026-10-08 12:16:47.986342480 +0900
++++ b/backup.sh	2026-10-08 12:16:48.021810347 +0900
+@@ -16,18 +16,23 @@
+ archive="$DEST_DIR/orders-$STAMP.tar.gz"
+ 
+ echo "[backup] preparing $DEST_DIR"
+-mkdir -p "$DEST_DIR"
++mkdir -p "$DEST_DIR" || { echo "!!! prepare failed" >&2; exit 1; }
++
++fail() { echo "!!! $1 failed (exit=$2)" >&2; rm -f "$archive"; exit "$2"; }
+ 
+ echo "[backup] archiving $SRC_DIR -> $archive"
+ tar -czf "$archive" -C "$SRC_DIR" .
++rc=$?; [ "$rc" -eq 0 ] || fail "archive" "$rc"
+ 
+ echo "[backup] verifying archive"
+ tar -tzf "$archive" > /dev/null
++rc=$?; [ "$rc" -eq 0 ] || fail "verify" "$rc"
+ 
+ echo "[backup] rotating (keep $KEEP)"
+ ls -1 "$DEST_DIR"/orders-*.tar.gz | sort -r | tail -n +"$((KEEP + 1))" | xargs -r rm -f
+ 
+ echo "[backup] publishing LATEST"
+ echo "$STAMP" > "$DEST_DIR/LATEST"
++rc=$?; [ "$rc" -eq 0 ] || { echo "!!! publish failed (exit=$rc)" >&2; exit "$rc"; }
+ 
+ echo "[backup] done"
