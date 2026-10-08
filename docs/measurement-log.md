@@ -6,3 +6,4 @@
 | 2026-10-08 | token-experiment | 낮음 | 0 (claude -p sonnet 60회 — 실험 대상) | A≈B, 60/60 성공, 비용 합 $4.79 |
 | 2026-10-08 | token-experiment 추가(F) | 낮음 | 0 (claude -p sonnet 33회) | F÷B 토큰 1.74(중앙값), 30/30 성공, 감사 오탐 3 수정 |
 | 2026-10-08 | experiment-v2 | 낮음 | 4 (Opus, 케이스 작성) + claude -p sonnet 100회 | 성공 B28/F28/P30, 토큰 F×1.87·P×1.35 |
+| 2026-10-08 | experiment-v2 추가(Haiku) | 낮음 | claude -p haiku 93회 | 성공 B29/P30/F30, P×1.49·F×1.76, 비용 합 $1.19 |
