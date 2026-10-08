@@ -42,8 +42,14 @@ CREDS = REAL_HOME / ".claude" / ".credentials.json"
 
 # 실행 경로: 작업 폴더는 실행마다 /tmp/cia-runs/<run_id>/work, A 아카이브 사본은 /tmp/cia-lib/issue
 # (bwrap 은 AppArmor 비특권 userns 제한으로 불가 → 권한 거부 규칙 + 로그 감사로 통제)
-ARCHIVE_DIR = Path("/tmp/cia-lib")
+ARCHIVE_DIR = Path("/tmp/cia-lib")  # 3차는 --archive-dir /tmp/cia-lib3 (가상 회사 아카이브)
 SB_ARCHIVE = str(ARCHIVE_DIR / "issue")
+
+
+def set_archive(d: str) -> None:
+    global ARCHIVE_DIR, SB_ARCHIVE
+    ARCHIVE_DIR = Path(d)
+    SB_ARCHIVE = str(ARCHIVE_DIR / "issue")
 
 PROMPT_BASE = (
     "현재 디렉터리의 프로젝트에 버그 보고가 들어왔다. TASK.md 를 읽고 문제의 근본 원인을 찾아 고쳐라.\n"
@@ -51,12 +57,12 @@ PROMPT_BASE = (
     "작업은 현재 디렉터리 안에서만 하라. 끝나면 원인과 수정 내용을 3줄 이내로 요약하라."
 )
 PROMPT_ARCHIVE = (
-    f"\n\n참고 자료: 과거 실전 이슈의 원인과 해결책을 정리한 아카이브가 {SB_ARCHIVE} 에 있다"
+    "\n\n참고 자료: 과거 실전 이슈의 원인과 해결책을 정리한 아카이브가 {archive} 에 있다"
     " (README.md 가 인덱스). 관련 카드를 스스로 찾아 활용해도 된다."
 )
 # 추가 실험 arm F(archive-first): 아카이브를 먼저 찾고, 없거나 맞지 않을 때만 직접 조사
 PROMPT_ARCHIVE_FIRST = (
-    f"\n\n작업 규칙: 과거 실전 이슈의 원인과 해결책을 정리한 아카이브가 {SB_ARCHIVE} 에 있다 (README.md 가 인덱스)."
+    "\n\n작업 규칙: 과거 실전 이슈의 원인과 해결책을 정리한 아카이브가 {archive} 에 있다 (README.md 가 인덱스)."
     " 코드를 고치기 전에 **먼저 이 아카이브에서 관련 카드를 찾아 읽어라.** 관련 카드가 없거나 맞지 않을 때만 직접 조사하라."
 )
 # 2차 arm P(A′): 정답 카드 경로를 직접 준다 (찾기 비용 0 — 카드 내용 가치의 상한)
@@ -88,8 +94,8 @@ def arm_prompt(arm: str, case: str) -> str:
         if not summary:
             raise ValueError(f"{case}: summary.txt 비어 있음")
         return PROMPT_SUMMARY.format(summary=summary)
-    return ARM_PROMPTS[arm]
-CARD_FILE = re.compile(r"cia-lib/issue/\S*(1-question|2-summary|3-answer)\.md")
+    return ARM_PROMPTS[arm].format(archive=SB_ARCHIVE)
+CARD_FILE = re.compile(r"cia-lib\d*/issue/\S*(1-question|2-summary|3-answer)\.md")
 
 # 감사: 실행 로그에 나타나면 무효로 처리할 패턴 (원본 아카이브·정답·웹 우회)
 AUDIT_COMMON = [r"study-note", r"junhyeong9812", r"oracle/", r"compare-issue-archive", r"fix\.patch", r"hidden\.sh",
@@ -324,8 +330,10 @@ def main() -> int:
     ap.add_argument("--cases-dir", default="cases")
     ap.add_argument("--oracle-dir", default="oracle")
     ap.add_argument("--results-dir", default="results")
+    ap.add_argument("--archive-dir", default=str(ARCHIVE_DIR))
     a = ap.parse_args()
     set_dirs(a.cases_dir, a.oracle_dir, a.results_dir)
+    set_archive(a.archive_dir)
 
     HOST_RUNS.mkdir(exist_ok=True)
     RAW.mkdir(parents=True, exist_ok=True)
