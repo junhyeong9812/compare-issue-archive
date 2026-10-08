@@ -1,0 +1,22 @@
+issue/fxq/tilde-quote-requery
+카드: archive-v3/issue/fxq/tilde-quote-requery/ (한빛페이 가상 아카이브)
+블랙박스 규칙: fxq rate PAIR DATE 는 벤더 휴장일(토·일 + 내장 휴장 목록: 2026 공휴일·대체공휴일·12/31)에 exit 0으로
+  직전 벤더 영업일 값을 그대로 내며 줄 끝에 "~N"(N = 직전 영업일로부터 일수)을 붙인다. 정산 기준값은 같은 날짜를 --fix로
+  재조회해야 나오고(휴장일: 벤더 산출값 = (앞뒤 영업일 평균) + 날짜별 해시 보정, 영업일: 일반 조회와 같은 값), 사내 계산으로 재현되지 않는다.
+채택 근거: 카드 변형 A(꼬리표를 버리는 파서 → 이월 값으로 평가)를 정산 도메인으로 옮긴 같은 원인의 다른 사건.
+  카드 사건 = 외화지갑 일일 외화평가(8/15~8/17 광복절 연휴, 회계 원장과 평가손익 차이).
+  케이스 사건 = 해외카드 파트너 정산(10/03~10/05 개천절 연휴, 파트너 명세와 gross 차이). 서비스·증상·날짜·통화가 다르다.
+  카드 변형 B(요일 재구현)·C(전역 --fix → 표시 회귀)가 케이스의 우회 함정(visible 10/05 대체공휴일, 환율판 테스트)과 대응한다.
+근본 원인: src/infra/FxqClient.java parse()가 응답 4번째 칸(~N)을 버리고, src/service/RateService.java settlementRate()가
+  일반 조회 값(이월 값)을 그대로 정산에 쓴다.
+올바른 해결: parse가 ~N을 FxQuote.lagged로 보존하고, settlementRate가 lagged면 같은 날짜를 --fix로 재조회(별도 캐시).
+  대안(동등): settlementRate만 항상 --fix 조회. 환율판(quote) 경로는 일반 조회 유지.
+증상 파일: src/api/SettlementApi.java reconcile/daily → src/api/ReportFormatter.java(MISMATCH 출력), test/SettlementE2ETest.java.
+  경로: SettlementApi → SettlementService.convert → RateService.settlementRate → FxqClient.rate/parse → vendor/bin/fxq.
+미끼:
+  1) src/service/BusinessDateResolver.java — UTC→KST 일자 변환(10/03 00:20 KST 건 T0008 등 자정 근처 승인). 무죄. UTC로 바꾸면 unit 실패.
+  2) src/util/Money.java — HALF_UP 환산·수수료 DOWN 절사. 무죄. HALF_EVEN으로 바꾸면 e2e 실패 그대로.
+  3) src/service/RateService.java 캐시(pair@date 키) — 무죄. 캐시 제거해도 실패 그대로.
+  4) src/service/ReconcileService.java — 대사 비교 로직. 무죄(허용오차 땜질 시 unit 실패).
+hidden: 다른 주(10/06~10/12: 10/09 금 한글날, 10/10~11 주말, EUR·JPY·CNY, 신규 파트너 P-1005, 환불·자정 근처 승인)의
+  대사 + 명시 gross/net, 명세가 아직 없는 데이터셋(hidden-fixtures-open)의 gross, 휴장일 환율판 = 공시값(이월 값), 샘플 주 회귀.

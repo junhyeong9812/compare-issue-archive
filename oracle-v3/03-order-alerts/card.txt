@@ -1,0 +1,29 @@
+issue/messaging/mqpub-batch-key-head
+카드: archive-v3/issue/messaging/mqpub-batch-key-head/
+채택 근거: 카드의 규칙(한 배치 안에서 키 앞 16바이트가 같으면 첫 메시지만 저장, exit 0·accepted=요청 건수)과
+  교정(전체 논리 키의 결정적 해시 16자를 키 맨 앞에)이 이 케이스의 원인·수정과 그대로 같다.
+  카드 사건은 같은 규칙을 정산 서비스(가맹점 정산 완료 이벤트, 키 settle.done.<가맹점>.<일자>, 가맹점 웹훅 미수신)에서 겪은 과거 사건이다.
+  이 케이스는 주문 알림 서비스(키 ntf.<이벤트>.<주문번호>, 고객 문자 미발송)라 서비스·키 형태·증상이 다르다.
+블랙박스 규칙: mqpub publish 1회 안에서 키의 앞 16바이트(짧으면 전체)가 같은 메시지는 첫 것만 스풀에 저장, 나머지 무음 폐기. stdout "accepted <요청 건수> batch <n>", exit 0.
+근본 원인: src/messaging/keys.ts messageKey 가 `ntf.<kind>.<orderNo>` 를 만든다 — "ntf.ship." 9바이트 뒤에 주문번호 앞 7바이트만 비교 범위에 들어가,
+  같은 주문일의 자사몰 주문(O261007-…)·같은 제휴사의 오픈마켓 주문(M-GMKT-…)끼리 한 회차 배치에서 첫 주문만 남는다.
+증상 파일: src/report/dispatchReport.ts(회차 리포트 "미발송"·발송 건수 부족) · GET /customers/:id/alerts 수신함 · tests/dispatch.e2e.test.ts.
+  경로: api/alertsHandler → service/dispatchService → messaging/eventPublisher → messaging/keys(원인) → mqpubClient(호출부) → notifier/consumerWorker(읽은 것만 발송) → report.
+올바른 해결: keys.ts 에서 키 맨 앞에 전체 논리 키의 sha1 hex 16자를 둔다(결정적 → 소비자 handledKeys 중복 방지 유지, 회차 1배치 유지).
+미끼:
+  1) src/notifier/consumerWorker.ts handledKeys — "같은 키는 다시 안 보냄" 스킵. 키가 전부 달라 무죄. 제거해도 test.sh 실패.
+  2) src/service/notificationPlanner.ts — 회차 내 같은 주문·이벤트 1회로 축약, 수신 거부 제외. 무죄. 수정해도 실패.
+  3) src/messaging/payloadCodec.ts — 제어문자 제거·크기 상한·버전 검사. 무죄.
+  4) src/util/phone.ts·notifier/smsGateway.ts — 번호 정규화 실패 시 거절. 테스트 번호는 전부 정상(실패 0건).
+  5) consumerWorker 의 nextOffset/slice(limit) — 오프셋 처리. 무죄.
+hidden: 14건 대량 회차(자사몰 같은 날 6 + CPNG 5 + SSGM 3, DELIVERED), 한 주문의 PAID·SHIPPED·DELIVERED 동시(GMKT 2주문),
+  2회차 연속(회차별 1배치·재발송 없음), 원 샘플 회귀. 모든 시나리오에서 바이너리 stat/consume 으로 브로커 저장 건수·배치 수를 직접 대조.
+우회 확인(test.sh / hidden):
+  끝단 땜질(dispatchService 가 미발송 알림을 게이트웨이로 직접 보충) PASS / FAIL(브로커 저장 3/14)
+  배치 분할(키 앞 16바이트 그룹별로 여러 publish — 규칙 재구현) PASS / FAIL(배치 수)
+  메시지별 publish PASS / FAIL(배치 수)
+  주문번호를 키 앞으로(`${orderNo}.${kind}...`) FAIL / FAIL
+  주문번호 뒤집기 접두(이벤트가 16바이트 밖) PASS / FAIL
+  주문번호만 해시(이벤트 미포함) PASS / FAIL
+  미끼 handledKeys 제거 FAIL / FAIL · 미끼 planner/codec 수정 FAIL / FAIL
+  (참고) 배치 내 순번 접두(`0000:` + 키) PASS / PASS — 규칙상 올바른 키 구성(앞 16바이트 유일)이라 정답으로 인정.

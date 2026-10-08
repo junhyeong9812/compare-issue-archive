@@ -1,0 +1,82 @@
+--- a/src/domain/FxQuote.java
++++ b/src/domain/FxQuote.java
+@@ -3,5 +3,8 @@
+ import java.math.BigDecimal;
+ import java.time.LocalDate;
+ 
+-/** A single quote returned by the FX vendor for one pair and one value date. */
+-public record FxQuote(String pair, LocalDate date, BigDecimal rate) {}
++/**
++ * A single quote returned by the FX vendor for one pair and one value date.
++ * {@code lagged} is set when the line carries the vendor's trailing {@code ~N} tag.
++ */
++public record FxQuote(String pair, LocalDate date, BigDecimal rate, boolean lagged) {}
+--- a/src/infra/FxqClient.java
++++ b/src/infra/FxqClient.java
+@@ -24,21 +24,32 @@
+ 
+     /** Raw stdout line for {@code fxq rate PAIR DATE}. */
+     public String rate(String pair, LocalDate date) {
++        return rate(pair, date, false);
++    }
++
++    /** Raw stdout line for {@code fxq rate PAIR DATE --fix} (settlement value). */
++    public String fixing(String pair, LocalDate date) {
++        return rate(pair, date, true);
++    }
++
++    private String rate(String pair, LocalDate date, boolean fix) {
+         List<String> cmd = new ArrayList<>();
+         cmd.add(bin.toString());
+         cmd.add("rate");
+         cmd.add(pair);
+         cmd.add(date.toString());
++        if (fix) cmd.add("--fix");
+         return run(cmd);
+     }
+ 
+-    /** Parses one quote line: {@code PAIR YYYY-MM-DD RATE ...}. */
++    /** Parses one quote line: {@code PAIR YYYY-MM-DD RATE [~N]}. */
+     public static FxQuote parse(String line) {
+         String[] t = line.trim().split("\\s+");
+         if (t.length < 3) {
+             throw new IllegalArgumentException("unexpected quote line: " + line);
+         }
+-        return new FxQuote(t[0], LocalDate.parse(t[1]), new BigDecimal(t[2]));
++        boolean lagged = t.length > 3 && t[3].startsWith("~");
++        return new FxQuote(t[0], LocalDate.parse(t[1]), new BigDecimal(t[2]), lagged);
+     }
+ 
+     private String run(List<String> cmd) {
+--- a/src/service/RateService.java
++++ b/src/service/RateService.java
+@@ -12,6 +12,7 @@
+ public class RateService {
+     private final FxqClient client;
+     private final Map<String, FxQuote> cache = new HashMap<>();
++    private final Map<String, FxQuote> fixings = new HashMap<>();
+     private int vendorCalls;
+ 
+     public RateService(FxqClient client) {
+@@ -26,9 +27,19 @@
+         });
+     }
+ 
+-    /** Rate applied to card transactions of the given KST settlement date. */
++    /**
++     * Rate applied to card transactions of the given KST settlement date.
++     * A lagged quote (trailing ~N) repeats an earlier day's value and must not be settled with;
++     * the vendor's --fix value for that date is used instead.
++     */
+     public BigDecimal settlementRate(String currency, LocalDate date) {
+-        return quote(currency, date).rate();
++        FxQuote q = quote(currency, date);
++        if (!q.lagged()) return q.rate();
++        String pair = CurrencyPairs.pairOf(currency);
++        return fixings.computeIfAbsent(pair + "@" + date, k -> {
++            vendorCalls++;
++            return FxqClient.parse(client.fixing(pair, date));
++        }).rate();
+     }
+ 
+     public int vendorCalls() {
