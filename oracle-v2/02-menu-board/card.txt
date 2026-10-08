@@ -1,0 +1,10 @@
+issue/cross-cutting/concurrency/single-writer-ownership
+카드: /home/jun/project/study-note/issue/cross-cutting/concurrency/single-writer-ownership
+채택 사건: 질문 6 / 정답 6 / 방안 7 (ORM 전체 컬럼 UPDATE → 안 바꾼 컬럼의 lost update) — 1차(변형 A, 주기 overwrite 스레드 vs 필드 writer)와 다른 사건
+  인용: "변경 컬럼만 쓰는 옵션이 없으면 ORM은 엔티티의 **모든 컬럼**을 로드 시점 값 그대로 UPDATE 문에 넣는다. 내가 이름만 고쳤어도, 그 사이 다른 트랜잭션이 바꾼 정렬 순서 컬럼이 내가 로드했던 옛 값으로 **되돌아간다**."
+  인용: "내 코드에 그 컬럼이 안 보여도 lost update의 writer가 된다는 점이 함정이다."
+  인용(방안 7): "선택지 1: 변경 컬럼만 UPDATE(@DynamicUpdate) / 선택지 2(채택): 같은 행을 수정하는 모든 경로를 그룹 행 비관락으로 직렬화 ... 정렬 경로만 잠그면 부족하다 — 같은 행을 쓰는 **모든** 경로가 같은 락을 잡아야 한다."
+근본 원인: orm/Session.flush()가 세션에 로드된 모든 엔티티를 mapper.toRow() 전체 컬럼으로 db.update 한다(dirty 판정 없음). 이름만 바꾼 PATCH(서비스 코드엔 position이 안 보임)가 로드 시점 position을 다시 써서 동시에 끝난 이동(move)을 되돌린다. 반대로 move·addItem도 로드한 다른 항목의 name/visible을 옛 값으로 덮는다. 증상은 공개 GET /menus/{cat} 의 순서.
+올바른 해결: 세션이 로드 시점 행 스냅숏을 보관하고 flush 때 바뀐 컬럼만 update(바뀐 게 없으면 쓰지 않음) — 카드 선택지 1. 또는 같은 행을 쓰는 모든 쓰기 경로(Transactions 전체)를 한 락으로 직렬화 — 선택지 2(hidden 통과).
+미끼: query/MenuQueryService(버전 기반 캐시 — stale 의심), repo/MenuRepository.BOARD_ORDER(position 동률 시 이름 정렬 — 증상 순서를 만드는 것처럼 보임), service/MenuOrderingService.renumber(STEP 10 간격·조건부 moveTo), db/InMemoryDatabase.update(병합 — 무죄).
+hidden: 쓰기(update) 직전 게이트로 A 이름변경↔이동, B 이동↔이름변경(역방향), C 항목 추가↔이동(추가 경로도 기존 항목을 덮는지), D 가격↔숨김(같은 행 다른 컬럼), E 순차. "쓰기 직전 재조회" 땜질과 "rename·move 경로만 락" 땜질을 잡는다.

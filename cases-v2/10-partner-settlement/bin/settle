@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# settle — partner settlement batch.
+#
+#   settle run DATE        stage → normalize → aggregate → publish
+#   settle report DATE     print the published report
+#   settle export DATE     print the published CSV export
+#   settle partner CODE    show the master entry for CODE
+#   settle check DATE      re-verify control totals of a staged feed
+#
+# DATE is YYYYMMDD. Configuration: conf/settle.conf (SETTLE_* overrides).
+set -u
+export LC_ALL=C.UTF-8
+SETTLE_HOME=$(cd "$(dirname "$0")/.." && pwd)
+export SETTLE_HOME
+. "$SETTLE_HOME/steps/_env.sh"
+
+usage() { sed -n '3,10p' "$0" | sed 's/^# \{0,1\}//'; }
+
+cmd_run() {
+  local date=$1 step rc
+  for step in "$SETTLE_HOME"/steps/[0-9][0-9]-*.sh; do
+    bash "$step" "$date"
+    rc=$?
+    if [ "$rc" -ne 0 ]; then
+      warn "step $(basename "$step") failed (exit $rc)"
+      return "$rc"
+    fi
+  done
+  log "run $date complete"
+}
+
+cmd_show() {
+  local f="$OUT_DIR/$1-$2.$3"
+  require_file "$f" "$1"
+  cat "$f"
+}
+
+cmd_partner() {
+  local code=$1
+  partners_load 2>/dev/null
+  if ! cache_get partners "$code" >/dev/null; then
+    echo "no such partner: $code" >&2
+    return 4
+  fi
+  printf 'code:   %s\nname:   %s\nstatus: %s\n' "$code" "$(partner_name "$code")" \
+    "$(cache_get partner_status "$code")"
+}
+
+cmd_check() {
+  local dir
+  dir=$(run_dir "$(check_date "$1")")
+  require_file "$dir/normalized.tsv" "normalized records"
+  ledger_check "$dir/feed.dat" "$dir/normalized.tsv" && echo "control totals OK"
+}
+
+[ $# -ge 1 ] || { usage; exit 64; }
+cmd=$1; shift
+case "$cmd" in
+  run)     [ $# -eq 1 ] || { usage; exit 64; }; cmd_run "$(check_date "$1")" ;;
+  report)  [ $# -eq 1 ] || { usage; exit 64; }; cmd_show report "$(check_date "$1")" txt ;;
+  export)  [ $# -eq 1 ] || { usage; exit 64; }; cmd_show export "$(check_date "$1")" csv ;;
+  partner) [ $# -eq 1 ] || { usage; exit 64; }; cmd_partner "$1" ;;
+  check)   [ $# -eq 1 ] || { usage; exit 64; }; cmd_check "$1" ;;
+  -h|--help|help) usage ;;
+  *) usage; exit 64 ;;
+esac

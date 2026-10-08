@@ -1,0 +1,23 @@
+issue/shell/exit-status-semantics
+카드: /home/jun/project/study-note/issue/shell/exit-status-semantics/
+채택 사건: 질문 5 / 정답 5 / 문제 구조 "변형 E — 명령별 비0 의미를 실패로 오해"
+  "iconv는 불완전 꼬리를 만나면 유효한 접두를 이미 출력한 뒤 비0을 낸다."
+  "out=$(iconv ...) || out="$raw"처럼 비0을 "읽기 실패 폴백"으로 쓰자, 정상적인 부분 변환이 매번 폴백으로 빠져 원시 절단(문자 중간이 잘린 바이트열)으로 회귀했다."
+  "교정은 out=$(iconv ... || true) — rc는 무시하고 출력을 채택, 출력이 없을 때만 폴백."
+1차와의 차이: 1차(10-nightly-backup)는 변형 B(-e 없는 순차 스크립트, 마지막 명령 rc). 2차는 변형 E(명령 치환 안 iconv의 비0을 실패로 해석한 폴백).
+  증상은 종료 코드가 아니라 "출력 글자 깨짐"이라 rc 문제로 바로 연결되지 않는다(배치는 계속 exit 0).
+근본 원인: lib/charset.sh charset_to_utf8 의 `out=$(printf … | iconv -f EUC-KR -t UTF-8 -c) || out=$raw` —
+  ERP가 20/12바이트로 바이트 절단한 이름·적요는 끝에 2바이트 문자의 앞 바이트만 남는다. iconv -c는 유효 접두를 출력하고도
+  "불완전 꼬리"로 rc 1을 내므로, 변환 결과를 버리고 EUC-KR 원시 바이트를 그대로 UTF-8 산출물(리포트·CSV·조회)에 흘린다.
+올바른 해결: 변환 출력을 rc와 무관하게 채택하고(`|| true`), 출력이 비었을 때만 원문으로 대체 — 공유 지점(charset_to_utf8) 1곳 수정으로
+  마스터 경로(partners.sh → report/partner 조회)와 피드 경로(feed.sh → CSV, 마스터에 없는 거래처의 리포트 이름) 모두 복구.
+증상 파일: lib/report.sh(리포트 출력) · tests/test_daily_report.sh(E2E). 원인 파일: lib/charset.sh (경로: bin/settle → steps/40-publish.sh → lib/partners.sh → lib/charset.sh).
+부수 증상(같은 원인): 원시 EUC-KR 끝 바이트(예: 0xC4)가 UTF-8 로캘의 bash `read`에서 다음 줄 개행을 삼켜 totals 다음 행이 사라짐 → 리포트의 "(inactive partners omitted)" 줄 누락. 수정 후 함께 복구.
+미끼:
+  1) lib/cache.sh — 파일 캐시(stale/교체 로직, cache_fresh mtime 비교) — 무죄. 캐시 우회해도 test.sh 실패.
+  2) lib/text.sh — text_fit/text_pad 문자 단위 자르기·폭 계산 — 무죄(리포트 열 맞춤). 수정해도 실패.
+  3) lib/feed.sh — LC_ALL=C 바이트 슬라이스(layout_slice) — 규격상 맞음. 문자 단위로 바꾸면 레이아웃 붕괴.
+  4) lib/charset.sh 의 `local … out` 선언 — "local이 rc를 가린다" 함정처럼 보이지만 선언과 대입이 분리돼 있어 무죄.
+  5) bin/settle cmd_run 의 `"$(check_date "$1")"` — 명령 치환 안 die가 상위로 전파되지 않는 잠재 결함이지만 증상과 무관.
+hidden: 다른 일자·다른 마스터(홀수 ASCII 접두로 절단된 이름, 적요 절단, 마스터에 없는 거래처)로 리포트·CSV·partner 조회 3경로 + 원 샘플 일자 회귀를 검사.
+  우회 확인: 리포트 끝단 재변환(test.sh 통과 / hidden 실패), partners.sh만 수정(test.sh 통과 / hidden 실패), feed.sh만 수정·캐시·text_fit·local 미끼(둘 다 실패).

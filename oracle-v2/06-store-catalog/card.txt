@@ -1,0 +1,11 @@
+issue/cross-cutting/reliability/atomic-file-replace
+카드: /home/jun/project/study-note/issue/cross-cutting/reliability/atomic-file-replace/
+채택 사건: 3-answer.md 정답 3 + 방안 5 — 고정 이름 임시(백업) 디렉터리 재사용 → 복원이 잔재까지 되돌림
+  "고정 이름의 백업 디렉터리를 재사용하면 이전 실행(심지어 다른 작업)의 잔재가 그대로 남아 있다가, 복원 단계의 와일드카드 복사($BK/*)가 그 잔재까지 대상에 되돌린다 — 증상은 엉뚱한 곳에서 나타나 오진을 부른다."
+  "교정은 실행마다 새 경로(mkdtemp)를 받아 이름 충돌을 구조적으로 불가능하게 하는 것이다."
+  (2-summary: "고정 이름 temp/staging은 동시 writer 충돌과 이전 실행 잔재의 재주입을 만든다.")
+1차와의 차이: 1차(06-inventory-save)는 변형 A(open(path,'w') truncate 후 중간 실패 → 절단 파일). v2는 ADR-0002 D2 권고대로 덜 교과서적인 "고정 이름 temp/staging" 사건(방안 5)을 골랐다. 파일 쓰기 자체(util/fsutil.atomic_write_json)는 유니크 temp + os.replace로 올바르게 되어 있어, 카드의 기본 방안만 아는 에이전트에게는 오히려 미끼가 된다.
+근본 원인: storefront/util/fsutil.py scratch_dir()가 매번 같은 경로(<scratch_root>/backup)를 돌려주고, store/revision.py가 지점과 무관하게 그 한 디렉터리에 백업을 복사(커밋 뒤에도 남김)한 뒤 rollback에서 그 디렉터리의 *.json 전부를 지점 카탈로그로 되돌린다 → 다른 지점·이전 실행의 잔재가 재주입된다. 증상은 끝단 GET /stores/<store>/products.
+올바른 해결: scratch_dir()가 호출마다 새 빈 디렉터리(tempfile.mkdtemp(dir=scratch_root) — 같은 파일시스템)를 돌려주게 해 리비전마다 백업 경로를 분리한다(선택: 커밋/롤백 후 정리).
+미끼: util/fsutil.atomic_write_json(원자 쓰기, 무죄), store/product_repo의 store.lower() 캐시 키(무죄), services/catalog_service의 _shared 오버레이 병합(다른 지점 상품이 섞이는 경로처럼 보임, 무죄), services/validation 중복 이름 규칙, import_jobs 단계 처리.
+hidden: ① 같은 지점에서 삭제 커밋 뒤 거절 → 삭제 상품 부활 금지(지점별 고정 이름 땜질을 잡음) ② 두 지점 import 동시 진행 + 겹치는 SKU(TEA-01) → 실패 지점은 자기 원본으로(시작 시 비우기 땜질·"시작 때 이름만 복원" 땜질을 잡음) ③ busan import 진행 중 seoul 커밋/거절 → busan 롤백 정확성 ④ 같은 지점 import 진행 중 다른 리비전 거절 → 원본 복원(지점별 이름 + 시작 시 비우기 조합 땜질을 잡음).

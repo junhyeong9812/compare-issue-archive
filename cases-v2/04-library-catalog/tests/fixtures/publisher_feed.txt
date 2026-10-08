@@ -1,0 +1,77 @@
+# Harbor Books monthly feed, format v2
+id: B-1001
+title: The Quiet Harbor
+creator: Mina Seo
+date: 2015-03-02
+subject: Fiction
+subject: Sea
+language: en
+publisher: Harbor Books
+
+id: B-1002
+title: Field Guide to Coastal Birds /
+creator: Daniel Park
+creator: Hyejin Lim
+date: 2019.06.15
+subject: Nature
+language: en
+publisher: Harbor Books
+
+id: B-1003
+title: Tidal Arithmetic
+creator: Ruth Okafor
+date: 2021-01
+subject: Mathematics
+language: en
+publisher: Harbor Books
+
+id: B-1004
+title: Salt and Iron: A History of the Shipyards
+creator: Jonas Berg
+date: 2017-09-01
+date: 2021-04-20
+subject: History
+subject: Industry
+language: en
+publisher: Harbor Books
+
+id: B-1005
+title: Night Ferry
+creator: Mina Seo
+date: 2019
+subject: Fiction
+language: en
+publisher: Harbor Books
+
+id: B-1006
+title: An Atlas of Small Islands
+creator: Petra Novak
+date: 2021-11-30
+subject: Geography
+language: en
+publisher: Harbor Books
+
+id: B-1007
+title: Lighthouse Keepers' Letters
+creator: Various
+subject: History
+language: en
+publisher: Harbor Books
+
+id: B-1008
+title: Knots, Splices and Rigging
+creator: Daniel Park
+date: 2019-02-11
+date: 2021-07-01
+subject: Craft
+language: en
+publisher: Harbor Books
+
+id: B-1009
+title: Moon Over the Breakwater
+creator: Ana Lima
+date: 2023-05-05
+subject: Fiction
+subject: Poetry
+language: pt
+publisher: Harbor Books

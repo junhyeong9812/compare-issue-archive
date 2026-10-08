@@ -1,0 +1,18 @@
+diff -ruN 09a/src/util/deepEqual.ts 09b/src/util/deepEqual.ts
+--- a/src/util/deepEqual.ts	2026-10-08 17:52:47.627452492 +0900
++++ b/src/util/deepEqual.ts	2026-10-08 17:52:47.671878234 +0900
+@@ -1,9 +1,13 @@
+ import { isPlainObject } from "../domain/profile";
+ 
+-/** Structural equality for setting values (arrays by position, objects by key set). */
++/**
++ * Structural equality for setting values (arrays by position, objects by key set).
++ * NaN is a stored value here ("could not be computed"), so NaN equals NaN.
++ */
+ export function valuesEqual(a: unknown, b: unknown): boolean {
+   if (a === b) return true;
+   if (typeof a !== typeof b) return false;
++  if (typeof a === "number") return Number.isNaN(a) && Number.isNaN(b as number);
+   if (Array.isArray(a) || Array.isArray(b)) {
+     if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+     for (let i = 0; i < a.length; i++) if (!valuesEqual(a[i], b[i])) return false;

@@ -1,0 +1,12 @@
+--- a/lib/charset.sh	2026-10-08 17:45:55.871150309 +0900
++++ b/lib/charset.sh	2026-10-08 17:45:55.913683376 +0900
+@@ -9,7 +9,8 @@
+   case "$enc" in
+     UTF-8|utf-8|UTF8|utf8) printf '%s' "$raw"; return 0 ;;
+   esac
+-  out=$(printf '%s' "$raw" | iconv -f "$enc" -t UTF-8 -c 2>/dev/null) || out=$raw
++  out=$(printf '%s' "$raw" | iconv -f "$enc" -t UTF-8 -c 2>/dev/null || true)
++  [ -n "$out" ] || out=$raw
+   printf '%s' "$out"
+ }
+ 

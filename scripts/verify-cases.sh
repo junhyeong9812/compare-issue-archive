@@ -3,9 +3,11 @@
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 pass=0; fail=0
-for case_dir in "$ROOT"/cases/*/; do
+CASES_DIR="$ROOT/${CASES_DIR:-cases}"
+ORACLE_DIR="$ROOT/${ORACLE_DIR:-oracle}"
+for case_dir in "$CASES_DIR"/*/; do
   name="$(basename "$case_dir")"
-  oracle="$ROOT/oracle/$name"
+  oracle="$ORACLE_DIR/$name"
   [ -n "${ONLY:-}" ] && [[ "$name" != ${ONLY}* ]] && continue
   tmp="$(mktemp -d)"
   cp -r "$case_dir". "$tmp/"

@@ -1,0 +1,70 @@
+diff -ruN 07a2/src/presenter/orderRowPresenter.ts 07fix/src/presenter/orderRowPresenter.ts
+--- a/src/presenter/orderRowPresenter.ts	2026-10-08 17:55:42.503840200 +0900
++++ b/src/presenter/orderRowPresenter.ts	2026-10-08 17:55:42.518166378 +0900
+@@ -1,6 +1,6 @@
+ import { orderTotal } from "../domain/order";
+ import { OrderAggregate } from "../service/orderQueryService";
+-import { Badge, badgeFor } from "../ui/badges";
++import { Badge, orderBadge, paymentBadge, shipmentBadge } from "../ui/badges";
+ import { formatWon } from "../util/money";
+ 
+ export interface OrderRow {
+@@ -17,8 +17,8 @@
+     id: agg.order.id,
+     customer: agg.order.customer,
+     total: formatWon(orderTotal(agg.order), locale),
+-    status: badgeFor(agg.order.status),
+-    payment: agg.payment ? badgeFor(agg.payment.status) : null,
+-    shipment: agg.shipment ? badgeFor(agg.shipment.status) : null,
++    status: orderBadge(agg.order.status),
++    payment: agg.payment ? paymentBadge(agg.payment.status) : null,
++    shipment: agg.shipment ? shipmentBadge(agg.shipment.status) : null,
+   };
+ }
+diff -ruN 07a2/src/ui/badges/index.ts 07fix/src/ui/badges/index.ts
+--- a/src/ui/badges/index.ts	2026-10-08 17:55:42.503687711 +0900
++++ b/src/ui/badges/index.ts	2026-10-08 17:55:42.514223168 +0900
+@@ -1,3 +1,6 @@
++import { OrderStatus } from "../../domain/order";
++import { PaymentStatus } from "../../domain/payment";
++import { ShipmentStatus } from "../../domain/shipment";
+ import { ORDER_BADGES } from "./orderBadges";
+ import { PAYMENT_BADGES } from "./paymentBadges";
+ import { SHIPMENT_BADGES } from "./shipmentBadges";
+@@ -5,20 +8,26 @@
+ 
+ export { Badge, Tone } from "./types";
+ 
+-/** Every status the back office can display. */
+-const ALL_BADGES: Readonly<Record<string, Badge>> = Object.freeze({
+-  ...ORDER_BADGES,
+-  ...SHIPMENT_BADGES,
+-  ...PAYMENT_BADGES,
+-});
++/** Status words repeat across domains (e.g. PENDING, FAILED), so each domain keeps its own table. */
++const BADGES = {
++  order: ORDER_BADGES as Readonly<Record<string, Badge>>,
++  payment: PAYMENT_BADGES as Readonly<Record<string, Badge>>,
++  shipment: SHIPMENT_BADGES as Readonly<Record<string, Badge>>,
++};
++
++export type BadgeDomain = keyof typeof BADGES;
+ 
+ const UNKNOWN_TONE = "neutral" as const;
+ 
+-export function badgeFor(status: string): Badge {
+-  const badge = ALL_BADGES[status];
++export function badgeFor(domain: BadgeDomain, status: string): Badge {
++  const badge = BADGES[domain][status];
+   return badge ? { ...badge } : { label: status, tone: UNKNOWN_TONE };
+ }
+ 
+-export function knownStatuses(): string[] {
+-  return Object.keys(ALL_BADGES).sort();
++export const orderBadge = (s: OrderStatus): Badge => badgeFor("order", s);
++export const paymentBadge = (s: PaymentStatus): Badge => badgeFor("payment", s);
++export const shipmentBadge = (s: ShipmentStatus): Badge => badgeFor("shipment", s);
++
++export function knownStatuses(domain: BadgeDomain): string[] {
++  return Object.keys(BADGES[domain]).sort();
+ }

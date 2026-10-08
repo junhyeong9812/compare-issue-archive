@@ -1,0 +1,11 @@
+issue/cross-cutting/data/float-nan-semantics
+채택 사건: 변형 A — 부동소수점을 품은 레코드의 동치(반사성 붕괴가 구조체 전체 동치로 전파)
+  인용(2-summary.md 핵심 문장): "NaN은 **자기 자신과 같지 않다** → \"x == x\"를 전제로 한 모든 것(전동치 선언·== 탐지·중복 제거)이 깨진다."
+  인용(3-answer.md 변형 A): "무엇이 깨졌나: 새 필드 하나가 품은 f64가 NaN 반사성 문제를 구조체 전체의 동치 선언으로 전파했다."
+1차와의 차이: 1차는 변형 B(코드 생성기의 `=== Number.NaN` 탐지 → 리터럴 출력). v2 는 변형 A 를 TS 로 옮겼다 — TS 에는 derive(Eq) 가 없으므로, 같은 기제(레코드 동치가 x==x 를 전제)를 "변경 없음 판정(no-op 감지)·drift 비교·중복 import 판정"의 구조적 동등 함수로 구현했다. `=== NaN` 같은 눈에 띄는 탐지 코드는 없고, 일반적인 deepEqual 의 `a === b` 가 숫자에서 그대로 false 로 떨어지는 형태라 덜 교과서적이다. 코드베이스의 다른 곳(저장 코덱·표시 포맷·반올림)은 NaN 을 올바르게 다뤄 미끼가 된다.
+근본 원인: src/util/deepEqual.ts valuesEqual 이 숫자를 `a === b` 로만 비교해 NaN 을 담은 설정(센서 보정 실패값)이 자기 자신과 같지 않게 된다 → ProfileService.apply 가 매 하트비트 새 리비전 생성, SyncStatusService(diff.changedKeys 경유)가 늘 drifted, ImportService 재import 도 변경으로 판정.
+올바른 해결: valuesEqual 의 숫자 비교에서 NaN 끼리는 같다고 본다(`Number.isNaN(a) && Number.isNaN(b)`) — 공유 동등 함수 한 곳에서 고쳐 리비전·상태·import 세 경로가 함께 고쳐진다. NaN 을 null 로 바꾸는 정규화나 JSON 문자열 비교는 의미를 잃는다(NaN≠null, Infinity·NaN 이 모두 null 로 직렬화).
+증상 파일: src/api/devicesHandler.ts 응답(GET /devices/:id/revisions count, GET /devices/:id/status drift). 원인 파일: src/util/deepEqual.ts (api → service/profileService·syncStatusService → util/diff → util/deepEqual).
+미끼: src/codec/settingsCodec.ts(NaN/Infinity 박싱 — 왕복 정상, 단위 테스트로 확인됨), src/codec/numberFormat.ts roundTo(반올림 — 비유한값 보존·멱등), src/store/revisionStore.ts latestIndex 캐시(무죄), src/service/normalize.ts(키 정렬·trim — 무죄), src/util/diff.ts(동등 함수 호출만 — 무죄).
+hidden: 원본 settingsCodec.ts 로 덮어써 코덱 변조 우회 차단. 다른 NaN 생성원(sqrt(-1)·0/0·Number("n/a")·inf-inf)·중첩 배열/객체·Infinity→NaN·NaN→null→NaN·→0·→-Infinity 전이가 각각 새 리비전인지, NaN 이 NaN 으로 보존되는지(summary "n/a"), changed 목록, import 멱등, status in-sync/drifted 를 검사.
+우회 확인: NaN→null 정규화(보이는 테스트 통과) → hidden 실패. JSON.stringify 비교(보이는 단위 테스트 실패, hidden 도 Infinity→NaN 미검출로 실패). ProfileService 에만 국소 수정 → 보이는 status 테스트 실패 + hidden 실패.

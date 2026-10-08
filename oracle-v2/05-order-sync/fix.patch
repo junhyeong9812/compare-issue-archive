@@ -1,0 +1,68 @@
+diff -ruN a/orderfeed/services/feed_service.py b/orderfeed/services/feed_service.py
+--- a/orderfeed/services/feed_service.py	2026-10-08 17:52:18.750687026 +0900
++++ b/orderfeed/services/feed_service.py	2026-10-08 17:52:18.755085867 +0900
+@@ -13,13 +13,14 @@
+             offset, top = 0, head
+         else:
+             token = page_token.decode(cursor)
+-            page_token.ensure_current(token, head)
++            seam = self.store.active_page(token.offset - 1, 1)
++            page_token.ensure_current(token, head, seam[0].id if seam else None)
+             offset, top = token.offset, token.top
+ 
+         items = self.store.active_page(offset, limit)
+         end = offset + len(items)
+         if items and end < self.store.count_active():
+-            next_cursor = page_token.encode(page_token.PageToken(end, top))
++            next_cursor = page_token.encode(page_token.PageToken(end, top, items[-1].id))
+         else:
+             next_cursor = None
+         return {"items": [o.to_dict() for o in items], "next_cursor": next_cursor}
+diff -ruN a/orderfeed/util/page_token.py b/orderfeed/util/page_token.py
+--- a/orderfeed/util/page_token.py	2026-10-08 17:52:50.218554572 +0900
++++ b/orderfeed/util/page_token.py	2026-10-08 17:52:50.257174990 +0900
+@@ -1,8 +1,9 @@
+ """Opaque page tokens for list endpoints.
+ 
+-A token records where the next page starts and which order was at the top of
+-the listing when the client began, so a walk that no longer matches the
+-listing is refused and the client starts over.
++A token records where the next page starts, which order was at the top of
++the listing when the client began, and which order closed the previous page,
++so a walk that no longer matches the listing is refused and the client
++starts over.
+ """
+ import base64
+ import binascii
+@@ -16,10 +17,11 @@
+ class PageToken:
+     offset: int
+     top: int
++    seam: object = None
+ 
+ 
+ def encode(token):
+-    raw = json.dumps({"o": token.offset, "t": token.top}, separators=(",", ":")).encode()
++    raw = json.dumps({"o": token.offset, "t": token.top, "s": token.seam}, separators=(",", ":")).encode()
+     return base64.urlsafe_b64encode(raw).decode().rstrip("=")
+ 
+ 
+@@ -27,7 +29,8 @@
+     padded = text + "=" * (-len(text) % 4)
+     try:
+         data = json.loads(base64.urlsafe_b64decode(padded.encode()))
+-        token = PageToken(int(data["o"]), int(data["t"]))
++        seam = data.get("s")
++        token = PageToken(int(data["o"]), int(data["t"]), None if seam is None else int(seam))
+     except (binascii.Error, ValueError, KeyError, TypeError):
+         raise InvalidRequest("malformed cursor") from None
+     if token.offset < 0:
+@@ -35,6 +38,6 @@
+     return token
+ 
+ 
+-def ensure_current(token, head_id):
+-    if head_id != token.top:
++def ensure_current(token, head_id, seam_id):
++    if head_id != token.top or seam_id != token.seam:
+         raise StaleCursor("the listing changed since the first page; start again")

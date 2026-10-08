@@ -1,0 +1,49 @@
+diff -ruN a/src/orm/Session.java b/src/orm/Session.java
+--- a/src/orm/Session.java	2026-10-08 17:48:49.088559696 +0900
++++ b/src/orm/Session.java	2026-10-08 17:48:49.130473698 +0900
+@@ -6,14 +6,15 @@
+ import java.util.LinkedHashMap;
+ import java.util.List;
+ import java.util.Map;
++import java.util.Objects;
+ import java.util.function.Predicate;
+ 
+ /**
+- * Unit of work. Entities loaded through a session are tracked; {@link #flush()} writes them back,
+- * so services only change objects and never call update themselves.
++ * Unit of work. Entities loaded through a session are tracked; {@link #flush()} writes back only the
++ * columns that changed since they were loaded, so services only change objects and never call update themselves.
+  */
+ public class Session {
+-    private record Managed(EntityMapper<Object> mapper, Object entity) {}
++    private record Managed(EntityMapper<Object> mapper, Object entity, Map<String, Object> loaded) {}
+ 
+     private final Database db;
+     private final Map<String, Managed> identityMap = new LinkedHashMap<>();
+@@ -60,7 +61,15 @@
+ 
+     void flush() {
+         for (Managed m : identityMap.values()) {
+-            db.update(m.mapper().table(), m.mapper().idOf(m.entity()), m.mapper().toRow(m.entity()));
++            Map<String, Object> changed = new LinkedHashMap<>();
++            for (Map.Entry<String, Object> column : m.mapper().toRow(m.entity()).entrySet()) {
++                if (!Objects.equals(column.getValue(), m.loaded().get(column.getKey()))) {
++                    changed.put(column.getKey(), column.getValue());
++                }
++            }
++            if (!changed.isEmpty()) {
++                db.update(m.mapper().table(), m.mapper().idOf(m.entity()), changed);
++            }
+         }
+     }
+ 
+@@ -72,7 +81,8 @@
+ 
+     @SuppressWarnings("unchecked")
+     private <T> T track(EntityMapper<T> mapper, T entity) {
+-        identityMap.put(mapper.table() + "/" + mapper.idOf(entity), new Managed((EntityMapper<Object>) mapper, entity));
++        Map<String, Object> loaded = new LinkedHashMap<>(mapper.toRow(entity));
++        identityMap.put(mapper.table() + "/" + mapper.idOf(entity), new Managed((EntityMapper<Object>) mapper, entity, loaded));
+         return entity;
+     }
+ 

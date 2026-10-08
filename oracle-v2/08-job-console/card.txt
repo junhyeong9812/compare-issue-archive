@@ -1,0 +1,10 @@
+issue/cross-cutting/reliability/debounce-trailing-contract
+채택 사건: 변형 B — 보류(held-back) emit 이 종결 이벤트와 순서를 뒤집음/유실 + 수신 쪽 "종결 우선"
+  인용(3-answer.md 정답 5): "보류 전송은 ... 그 사이에 **다른 경로로 즉시 나가는 이벤트**(프로세스 종료 → `closed`)가 보류분을 앞지른다. 결과는 두 가지다 — 보류분이 종료와 함께 버려지면 마지막 답변 **유실**, 나중에 flush되면 `closed` 뒤에 `timeline`이 도착하는 **역순**."
+  인용(3-answer.md 정답 7): "수신 쪽 규칙: 닫힌 id를 기억해 **같은 id의 늦게 도착한 이벤트는 최종 내용만 반영하고 \"종료\" 표시를 되돌리지 않는다**"
+1차와의 차이: 1차는 변형 A(trailing 플러시가 변화 게이트 뒤 + 실패 시 dirty 해제). v2 는 변형 B — trailing 자체는 올바르게 구현돼 있고(조용해진 뒤에도 보류분이 나감), 종결 경로와의 순서·유실이 문제다. 원인이 송신(stream/logPump.ts)과 수신(projection/jobProjection.ts) 두 곳에 걸쳐 있고, 한쪽만 고치면 다른 증상(유실 ↔ running 역행)이 드러난다(카드 정답 6의 "점 패치 라운드" 재현).
+근본 원인: (1) src/stream/logPump.ts 가 emitMinIntervalMs 창 안의 변경을 unsent 로 보류하는데, 프로세스 종료 시 ExitWatcher 가 closed 를 control 레인으로 즉시 내보내고 supervisor 가 pump.stop() 으로 보류분을 버린다 → 마지막 출력 유실. (2) src/projection/jobProjection.ts 가 timeline 을 받으면 무조건 status="running" 으로 덮어써, closed 뒤에 도착한 스냅샷(버스는 control 레인 우선 — 레인 간 순서 무보장 계약, 원격 러너는 임의 순서)이 종료 상태를 되돌린다.
+올바른 해결: 보류를 제거해 변경 시 즉시 emit(+ stop 시 최종 poll·emit), 수신 쪽은 종결 우선 — 이미 끝난 id 의 늦은 timeline 은 내용(log/seq)만 반영하고 종료 상태는 유지.
+증상 파일: src/api/jobsHandler.ts 응답(GET /jobs/:id, GET /jobs). 원인 파일: src/stream/logPump.ts(+supervisor.ts stop 경로), src/projection/jobProjection.ts.
+미끼: src/util/fingerprint.ts(변화 감지 해시 — 무죄), src/api/jobsHandler.ts present() 의 log tail slice(maxLogLines — 무죄), src/projection/jobProjection.ts 의 stale seq 가드(seq <= view.seq 무시 — 무죄), src/util/ansi.ts \r 접기·ANSI 제거(무죄), src/transport/eventBus.ts 의 control 우선 drain(공유 라이브러리 계약 — hidden 이 원본으로 덮어씀).
+hidden: 원본 eventBus.ts 로 덮어써 버스 FIFO 화 우회를 차단. tickMs 50·여러 작업 동시 종료·exit 2·running 중간 상태·재실행 새 id·원격 이벤트 경로(POST /events)로 closed 뒤 늦은 timeline / timeline 이전 closed 를 검사 → "stop 시 flush 만"(running 역행), "늦은 timeline 무시"(내용 유실), "버스 FIFO + 종료 전 flush"(송신 쪽 순서만 보정)를 모두 잡는다(직접 적용해 확인).

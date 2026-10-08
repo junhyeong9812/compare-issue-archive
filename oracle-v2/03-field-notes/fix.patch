@@ -1,0 +1,24 @@
+diff -ruN a/src/store/AuditingStore.java b/src/store/AuditingStore.java
+--- a/src/store/AuditingStore.java	2026-10-08 17:55:28.064010364 +0900
++++ b/src/store/AuditingStore.java	2026-10-08 17:55:28.108951854 +0900
+@@ -14,7 +14,9 @@
+ 
+ /**
+  * Base table for audited entities. Every save fills the audit columns
+- * (createdAt on first save, updatedAt, and the next revision) so callers cannot forget them.
++ * (createdAt on first save, the next revision, and updatedAt when the caller did not set one).
++ * updatedAt is the time the content changed, which for synced notes is the device's edit time —
++ * it must not be replaced with the time the row reached the server.
+  */
+ public class AuditingStore<T extends Audited<T>> {
+     private final Map<String, T> rows = new LinkedHashMap<>();
+@@ -30,7 +32,8 @@
+         Instant now = clock.instant();
+         T previous = rows.get(entity.id());
+         Instant created = previous != null ? previous.createdAt() : (entity.createdAt() != null ? entity.createdAt() : now);
+-        T stamped = entity.withAudit(created, now, revisions.incrementAndGet());
++        Instant updated = entity.updatedAt() != null ? entity.updatedAt() : now;
++        T stamped = entity.withAudit(created, updated, revisions.incrementAndGet());
+         rows.put(stamped.id(), stamped);
+         return stamped;
+     }

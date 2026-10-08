@@ -1,0 +1,25 @@
+diff -ruN a/storefront/util/fsutil.py b/storefront/util/fsutil.py
+--- a/storefront/util/fsutil.py	2026-10-08 17:52:18.765086020 +0900
++++ b/storefront/util/fsutil.py	2026-10-08 17:52:18.769086082 +0900
+@@ -3,6 +3,7 @@
+ import json
+ import os
+ import shutil
++import tempfile
+ 
+ _SEQ = itertools.count()
+ 
+@@ -42,10 +43,9 @@
+ 
+ 
+ def scratch_dir(root, purpose):
+-    """Working directory for an operation, created on demand under the scratch root."""
+-    path = os.path.join(root, purpose)
+-    os.makedirs(path, exist_ok=True)
+-    return path
++    """A new, empty working directory for one operation under the scratch root."""
++    os.makedirs(root, exist_ok=True)
++    return tempfile.mkdtemp(prefix=f"{purpose}-", dir=root)
+ 
+ 
+ def copy_files(src_dir, dst_dir, names=None):

@@ -1,0 +1,25 @@
+diff -ruN a/libcat/util/dates.py b/libcat/util/dates.py
+--- a/libcat/util/dates.py	2026-10-08 17:43:20.033928195 +0900
++++ b/libcat/util/dates.py	2026-10-08 17:43:20.079384125 +0900
+@@ -26,12 +26,15 @@
+ 
+ def years_of(value):
+     """Publication years mentioned by a date field, as a set of ints."""
+-    if not value or len(value) < 4:
+-        return set()
+-    head = value[:4]
+-    if not all(ch.isdigit() for ch in head):
+-        return set()
+-    return {int(head)}
++    values = value if isinstance(value, list) else [value]
++    years = set()
++    for text in values:
++        if not text or len(text) < 4:
++            continue
++        head = text[:4]
++        if head.isdigit():
++            years.add(int(head))
++    return years
+ 
+ 
+ def display_year(text):

@@ -29,6 +29,13 @@ ORACLE = ROOT / "oracle"
 RESULTS = ROOT / "results"
 RAW = RESULTS / "raw"
 RUNS_FILE = RESULTS / "runs.jsonl"
+
+
+def set_dirs(cases: str, oracle: str, results: str) -> None:
+    """2차 실험(cases-v2 등)용으로 입출력 디렉터리를 바꾼다."""
+    global CASES, ORACLE, RESULTS, RAW, RUNS_FILE
+    CASES, ORACLE, RESULTS = ROOT / cases, ROOT / oracle, ROOT / results
+    RAW, RUNS_FILE = RESULTS / "raw", RESULTS / "runs.jsonl"
 HOST_RUNS = Path("/tmp/cia-runs")
 REAL_HOME = Path.home()
 CREDS = REAL_HOME / ".claude" / ".credentials.json"
@@ -52,7 +59,29 @@ PROMPT_ARCHIVE_FIRST = (
     f"\n\n작업 규칙: 과거 실전 이슈의 원인과 해결책을 정리한 아카이브가 {SB_ARCHIVE} 에 있다 (README.md 가 인덱스)."
     " 코드를 고치기 전에 **먼저 이 아카이브에서 관련 카드를 찾아 읽어라.** 관련 카드가 없거나 맞지 않을 때만 직접 조사하라."
 )
+# 2차 arm P(A′): 정답 카드 경로를 직접 준다 (찾기 비용 0 — 카드 내용 가치의 상한)
+PROMPT_CARD = (
+    "\n\n작업 규칙: 이 문제와 관련된 과거 실전 이슈 카드가 {card_dir} 에 있다"
+    " (1-question.md, 2-summary.md, 3-answer.md). 코드를 고치기 전에 **먼저 이 카드를 읽어라.**"
+)
 ARM_PROMPTS = {"A": PROMPT_ARCHIVE, "F": PROMPT_ARCHIVE_FIRST, "B": ""}
+
+
+def card_path(case: str) -> str:
+    """oracle card.txt 의 첫 issue/ 경로 → 아카이브 사본 안 카드 폴더 (존재 확인 — 없으면 예외)."""
+    m = re.search(r"issue/([\w/.-]+)", (ORACLE / case / "card.txt").read_text())
+    if not m:
+        raise ValueError(f"{case}: card.txt 에 issue/ 경로 없음")
+    d = ARCHIVE_DIR / "issue" / m.group(1).strip("/.")
+    if not (d / "3-answer.md").is_file():
+        raise ValueError(f"{case}: 카드 폴더 없음 {d}")
+    return str(d)
+
+
+def arm_prompt(arm: str, case: str) -> str:
+    if arm == "P":
+        return PROMPT_CARD.format(card_dir=card_path(case))
+    return ARM_PROMPTS[arm]
 CARD_FILE = re.compile(r"cia-lib/issue/\S*(1-question|2-summary|3-answer)\.md")
 
 # 감사: 실행 로그에 나타나면 무효로 처리할 패턴 (원본 아카이브·정답·웹 우회)
@@ -62,7 +91,7 @@ AUDIT_B_ONLY = [r"cia-lib"]
 DENY_RULES = [f"{tool}(/{REAL_HOME}/project/**)" for tool in ("Read", "Edit", "Write", "Grep", "Glob")] + \
              [f"{tool}(//tmp/claude-*/**)" for tool in ("Read", "Grep", "Glob")]
 
-PROTECTED = re.compile(r"(^|/)(TASK\.md|test\.sh|tsconfig\.json|test_[^/]*\.py|[^/]*\.test\.ts)$|(^|/)test/")
+PROTECTED = re.compile(r"(^|/)(TASK\.md|test\.sh|tsconfig\.json|test_[^/]*\.py|[^/]*\.test\.ts)$|(^|/)(tests?|fixtures)/")
 
 _lock_path = HOST_RUNS / ".lock"
 
@@ -130,13 +159,17 @@ def audit(log_text: str, arm: str, run_id: str = "") -> list:
 
 
 def parse_log(log_path: Path) -> dict:
-    out = {"result": None, "tool_calls": 0, "tools": {}, "archive_reads": 0, "card_reads": 0}
+    out = {"result": None, "tool_calls": 0, "tools": {}, "archive_reads": 0, "card_reads": 0,
+           "first_edit_turn": None, "archive_result_bytes": 0}
+    turn = 0
+    archive_ids = set()
     for line in log_path.read_text(errors="replace").splitlines():
         try:
             ev = json.loads(line)
         except json.JSONDecodeError:
             continue
         if ev.get("type") == "assistant":
+            turn += 1
             for blk in ev.get("message", {}).get("content", []) or []:
                 if blk.get("type") in ("tool_use", "server_tool_use"):
                     out["tool_calls"] += 1
@@ -145,8 +178,18 @@ def parse_log(log_path: Path) -> dict:
                     inp = json.dumps(blk.get("input", {}), ensure_ascii=False)
                     if str(ARCHIVE_DIR) in inp:
                         out["archive_reads"] += 1
+                        archive_ids.add(blk.get("id"))
+                    edit_like = name in ("Edit", "Write", "MultiEdit") or (
+                        name.lower() == "bash" and re.search(r"\bsed -i|\bpatch\b|> *[\w./-]+\.(java|py|ts|sh)\b|python3? - <<", inp))
+                    if edit_like and out["first_edit_turn"] is None:
+                        out["first_edit_turn"] = turn
                     if CARD_FILE.search(inp):
                         out["card_reads"] += 1
+        elif ev.get("type") == "user":
+            content = ev.get("message", {}).get("content", [])
+            for blk in content if isinstance(content, list) else []:
+                if blk.get("type") == "tool_result" and blk.get("tool_use_id") in archive_ids:
+                    out["archive_result_bytes"] += len(json.dumps(blk.get("content"), ensure_ascii=False).encode())
         elif ev.get("type") == "result":
             out["result"] = ev
     return out
@@ -201,7 +244,7 @@ def run_one(case: str, arm: str, rep: int, model: str, budget: str, timeout_s: i
     shutil.copy2(CREDS, sb_creds)
     os.chmod(sb_creds, 0o600)
 
-    prompt = PROMPT_BASE + ARM_PROMPTS[arm]
+    prompt = PROMPT_BASE + arm_prompt(arm, case)
     log_path = RAW / f"{run_id}.jsonl"
     t0 = time.time()
     timed_out = False
@@ -232,6 +275,7 @@ def run_one(case: str, arm: str, rep: int, model: str, budget: str, timeout_s: i
         "web_search_requests": (usage.get("server_tool_use") or {}).get("web_search_requests"),
         "web_fetch_requests": (usage.get("server_tool_use") or {}).get("web_fetch_requests"),
         "tool_calls": parsed["tool_calls"], "tools": parsed["tools"], "archive_tool_calls": parsed["archive_reads"], "card_tool_calls": parsed["card_reads"],
+        "first_edit_turn": parsed["first_edit_turn"], "archive_result_bytes": parsed["archive_result_bytes"],
         "audit_violations": violations, "valid": not violations and parsed["result"] is not None,
         "tampered": j["tampered"], "test_pass": j["test_pass"], "hidden_pass": j["hidden_pass"],
         "success": j["test_pass"] and j["hidden_pass"] and not j["tampered"],
@@ -263,7 +307,11 @@ def main() -> int:
     ap.add_argument("--model", default="sonnet")
     ap.add_argument("--budget", default="2")
     ap.add_argument("--timeout", type=int, default=1800)
+    ap.add_argument("--cases-dir", default="cases")
+    ap.add_argument("--oracle-dir", default="oracle")
+    ap.add_argument("--results-dir", default="results")
     a = ap.parse_args()
+    set_dirs(a.cases_dir, a.oracle_dir, a.results_dir)
 
     HOST_RUNS.mkdir(exist_ok=True)
     RAW.mkdir(parents=True, exist_ok=True)

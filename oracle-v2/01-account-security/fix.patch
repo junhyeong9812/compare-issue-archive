@@ -1,0 +1,19 @@
+diff -ruN a/src/domain/PasswordPolicy.java b/src/domain/PasswordPolicy.java
+--- a/src/domain/PasswordPolicy.java	2026-10-08 17:44:28.122864907 +0900
++++ b/src/domain/PasswordPolicy.java	2026-10-08 17:44:28.170081233 +0900
+@@ -12,12 +12,12 @@
+     private static final int MIN_LENGTH = SETTINGS.intValue("password.minLength", 10);
+     private static final boolean REQUIRE_DIGIT = SETTINGS.boolValue("password.requireDigit", true);
+ 
+-    /** The policy every account flow uses, built from application settings. */
+-    public static final PasswordPolicy DEFAULT = new PasswordPolicy();
+-
+     // password history
+     private static final int REUSE_WINDOW = SETTINGS.intValue("password.reuseWindow", 5);
+ 
++    /** The policy every account flow uses, built from application settings. */
++    public static final PasswordPolicy DEFAULT = new PasswordPolicy();
++
+     private final int minLength;
+     private final boolean requireDigit;
+     private final int reuseWindow;

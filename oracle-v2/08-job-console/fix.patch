@@ -1,0 +1,114 @@
+diff -ruN 08a2/src/config.ts 08fix/src/config.ts
+--- a/src/config.ts	2026-10-08 17:54:41.067915786 +0900
++++ b/src/config.ts	2026-10-08 17:54:41.091121898 +0900
+@@ -1,8 +1,6 @@
+ export interface ConsoleConfig {
+   /** Host loop period. */
+   tickMs: number;
+-  /** Log snapshots for one job are sent at most this often (bandwidth). */
+-  emitMinIntervalMs: number;
+   /** Lines returned by the job detail endpoint (tail). */
+   maxLogLines: number;
+   /** Finished jobs are dropped from the console after this long. */
+@@ -11,7 +9,6 @@
+ 
+ export const defaultConfig: ConsoleConfig = {
+   tickMs: 100,
+-  emitMinIntervalMs: 400,
+   maxLogLines: 200,
+   retainFinishedMs: 60 * 60 * 1000,
+ };
+diff -ruN 08a2/src/projection/jobProjection.ts 08fix/src/projection/jobProjection.ts
+--- a/src/projection/jobProjection.ts	2026-10-08 17:54:41.066684756 +0900
++++ b/src/projection/jobProjection.ts	2026-10-08 17:54:41.094271786 +0900
+@@ -23,7 +23,9 @@
+       case "timeline": {
+         const view = this.store.get(e.jobId) ?? this.blank(e.jobId);
+         if (e.seq <= view.seq) return; // stale snapshot
+-        this.store.put({ ...view, status: "running", log: e.lines, seq: e.seq });
++        // A job that already ended stays ended: a late snapshot only updates the content.
++        const status = view.endedAt !== null ? view.status : "running";
++        this.store.put({ ...view, status, log: e.lines, seq: e.seq });
+         return;
+       }
+       case "closed": {
+diff -ruN 08a2/src/stream/logPump.ts 08fix/src/stream/logPump.ts
+--- a/src/stream/logPump.ts	2026-10-08 17:54:41.066349902 +0900
++++ b/src/stream/logPump.ts	2026-10-08 17:54:41.098000334 +0900
+@@ -1,19 +1,14 @@
+-import { ConsoleConfig } from "../config";
+ import { JobEvent } from "../domain/events";
+ import { OutputTail } from "../runtime/tail";
+ import { EventBus } from "../transport/eventBus";
+-import { Clock } from "../util/clock";
+ import { fingerprint } from "../util/fingerprint";
+ 
+ /**
+- * Polls one job's output every tick and publishes log snapshots.
+- * Snapshots are coalesced: at most one per `emitMinIntervalMs`; a change that
+- * arrives inside the window goes out with the first tick after it.
++ * Polls one job's output every tick and publishes a log snapshot whenever it changed.
++ * Nothing is held back: a held snapshot would race with the exit announcement.
+  */
+ export class LogPump {
+   private lastFp: string | null = null;
+-  private unsent: string[] | null = null;
+-  private lastEmit = Number.NEGATIVE_INFINITY;
+   private seq = 0;
+   private stopped = false;
+ 
+@@ -21,30 +16,28 @@
+     private readonly jobId: string,
+     private readonly tail: OutputTail,
+     private readonly bus: EventBus<JobEvent>,
+-    private readonly clock: Clock,
+-    private readonly config: ConsoleConfig,
+   ) {}
+ 
+   tick(): void {
+     if (this.stopped) return;
+-    const lines = this.tail.read();
+-    const fp = fingerprint(lines);
+-    if (fp !== this.lastFp) {
+-      this.lastFp = fp;
+-      this.unsent = lines;
+-    }
+-    const now = this.clock.now();
+-    if (this.unsent !== null && now - this.lastEmit >= this.config.emitMinIntervalMs) {
+-      this.bus.publish("data", { kind: "timeline", jobId: this.jobId, seq: ++this.seq, lines: this.unsent });
+-      this.unsent = null;
+-      this.lastEmit = now;
+-    }
++    this.poll();
+   }
+ 
++  /** Final poll so output written right before exit is not lost, then stop. */
+   stop(): void {
++    if (this.stopped) return;
++    this.poll();
+     this.stopped = true;
+   }
+ 
++  private poll(): void {
++    const lines = this.tail.read();
++    const fp = fingerprint(lines);
++    if (fp === this.lastFp) return;
++    this.lastFp = fp;
++    this.bus.publish("data", { kind: "timeline", jobId: this.jobId, seq: ++this.seq, lines });
++  }
++
+   sent(): number {
+     return this.seq;
+   }
+diff -ruN 08a2/src/stream/supervisor.ts 08fix/src/stream/supervisor.ts
+--- a/src/stream/supervisor.ts	2026-10-08 17:54:41.066279047 +0900
++++ b/src/stream/supervisor.ts	2026-10-08 17:54:41.101852832 +0900
+@@ -24,7 +24,7 @@
+ 
+   attach(jobId: string, name: string, proc: ProcessHandle): void {
+     if (this.running.has(jobId)) throw new Error(`job ${jobId} already attached`);
+-    const pump = new LogPump(jobId, new OutputTail(proc), this.bus, this.clock, this.config);
++    const pump = new LogPump(jobId, new OutputTail(proc), this.bus);
+     const watcher = new ExitWatcher(jobId, proc, this.bus, this.clock, () => this.detach(jobId));
+     this.running.set(jobId, { pump, watcher });
+     this.bus.publish("control", { kind: "started", jobId, name, at: this.clock.now() });

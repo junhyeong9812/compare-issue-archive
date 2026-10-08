@@ -1,0 +1,12 @@
+issue/python/language-and-stdlib-traps
+카드: /home/jun/project/study-note/issue/python/language-and-stdlib-traps/
+채택 사건: 3-answer.md 변형 A — str|list 겸용 필드 (2-summary "str|list 겸용 → len·slice 의미 바뀜")
+  "if rec.date and len(rec.date) >= 4:   # date 가 list 가 되면 요소 개수 비교
+       year = rec.date[:4]               #   슬라이스도 리스트 슬라이스"
+  "years = {d[:4] for d in rec.date} if isinstance(rec.date, list) else {rec.date[:4]}"
+  "무엇이 깨졌나: 값의 "모양"(하위 타입·빈 문자열·str/list)에 따라 같은 연산의 의미가 바뀌는데 검사는 한 가지 모양만 가정했다."
+1차와의 차이: 1차(04-name-romanizer)는 같은 변형 A의 `"" in "ei"`(빈 문자열 부분문자열) 사건. v2는 같은 변형의 다른 사건(str/list 겸용 date 필드)을 골랐다.
+근본 원인: 피드 코덱은 반복 키를 list로 만드는데(문서화된 동작), libcat/util/dates.py years_of()가 값을 문자열로만 가정해 list일 때 len()=요소 개수, [:4]=리스트 슬라이스가 되어 연도 집합이 조용히 비고, 그 레코드가 YearIndex에서 빠진다(증상: /search?year·/stats/years).
+올바른 해결: years_of()가 str·list 둘 다 받아 각 원소의 앞 4자리 연도를 모아 집합으로 반환(잘못된 원소는 건너뜀). 인덱스 add/remove가 같은 함수를 쓰므로 재수집 이동도 함께 맞는다.
+미끼: util/dates.parse_date·display_year(비슷한 이름, 무죄), util/cache.TTLCache(통계 캐시, 무죄 — harvest 시 clear), store/index.YearIndex.ids_between(범위 비교, 무죄), services/search 정렬·토큰 매칭, util/feed_format 반복 키→list(원인 아님, 문서화된 정상 동작).
+hidden: 날짜 3개 레코드·잘못된 원소("c. 1900") 섞인 list·범위 검색·재수집 시 연도 이동·통계를 다른 피드로 검사. 첫/마지막 날짜만 취하는 땜질과 검증 없는 int(d[:4]) 땜질을 잡는다.
