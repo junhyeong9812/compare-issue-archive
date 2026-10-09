@@ -1,0 +1,170 @@
+jobs=30 parallel=2
+[creds] 만료까지 25분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 25분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 24분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 24분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 23분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 23분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 22분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 22분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 21분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 21분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 20분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 20분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 19분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 19분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 18분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 18분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 17분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 17분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 16분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 16분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 15분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 15분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 14분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 14분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 13분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 13분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 12분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 12분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 11분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 11분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 10분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 10분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 9분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 9분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 8분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 8분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 7분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 7분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 6분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 6분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 5분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+[creds] 만료까지 5분 — 원본 갱신 대기(일반 claude 세션이 갱신)
+02-expense-close F r1: success=True valid=True cost=0.16051339999999997 turns=6 viol=[]
+01-overseas-card-settlement F r1: success=True valid=True cost=0.198204 turns=7 viol=[]
+03-order-alerts F r1: success=True valid=True cost=0.1329904 turns=6 viol=[]
+04-merchant-payout-files F r1: success=True valid=True cost=0.16414860000000003 turns=5 viol=[]
+05-member-onboarding F r1: success=True valid=True cost=0.1577532 turns=6 viol=[]
+06-partial-refund F r1: success=True valid=True cost=0.1617856 turns=6 viol=[]
+07-autopay-reminders F r1: success=True valid=True cost=0.1662748 turns=7 viol=[]
+08-market-stock-sync F r1: success=True valid=True cost=0.1390506 turns=5 viol=[]
+10-membership-points F r1: success=True valid=True cost=0.15248160000000002 turns=7 viol=[]
+09-config-rollout F r1: success=True valid=True cost=0.164719 turns=6 viol=[]
+01-overseas-card-settlement F r2: success=True valid=True cost=0.1933368 turns=7 viol=[]
+02-expense-close F r2: success=True valid=True cost=0.15041960000000001 turns=6 viol=[]
+03-order-alerts F r2: success=True valid=True cost=0.1490456 turns=6 viol=[]
+04-merchant-payout-files F r2: success=True valid=True cost=0.1494024 turns=6 viol=[]
+05-member-onboarding F r2: success=True valid=True cost=0.16154079999999998 turns=6 viol=[]
+06-partial-refund F r2: success=True valid=True cost=0.1597082 turns=7 viol=[]
+07-autopay-reminders F r2: success=True valid=True cost=0.17614080000000001 turns=8 viol=[]
+08-market-stock-sync F r2: success=True valid=True cost=0.13914 turns=5 viol=[]
+10-membership-points F r2: success=True valid=True cost=0.14093819999999999 turns=5 viol=[]
+09-config-rollout F r2: success=True valid=True cost=0.14974679999999999 turns=5 viol=[]
+01-overseas-card-settlement F r3: success=True valid=True cost=0.175155 turns=7 viol=[]
+02-expense-close F r3: success=True valid=True cost=0.14441140000000002 turns=5 viol=[]
+03-order-alerts F r3: success=True valid=True cost=0.1638732 turns=8 viol=[]
+04-merchant-payout-files F r3: success=True valid=True cost=0.1551924 turns=6 viol=[]
+05-member-onboarding F r3: success=True valid=True cost=0.14686000000000002 turns=5 viol=[]
+06-partial-refund F r3: success=True valid=True cost=0.1623066 turns=6 viol=[]
+07-autopay-reminders F r3: success=True valid=True cost=0.16152 turns=6 viol=[]
+08-market-stock-sync F r3: success=True valid=True cost=0.16096400000000002 turns=8 viol=[]
+10-membership-points F r3: success=True valid=True cost=0.1390962 turns=5 viol=[]
+09-config-rollout F r3: success=True valid=True cost=0.1469004 turns=6 viol=[]
+S100 SONNET EXIT 0
+jobs=30 parallel=2
+02-expense-close F r1: success=True valid=True cost=0.1331832 turns=7 viol=[]
+01-overseas-card-settlement F r1: success=True valid=True cost=0.16911500000000004 turns=8 viol=[]
+03-order-alerts F r1: success=True valid=True cost=0.14990399999999998 turns=9 viol=[]
+04-merchant-payout-files F r1: success=True valid=True cost=0.243026 turns=7 viol=[]
+05-member-onboarding F r1: success=True valid=True cost=0.14249040000000002 turns=8 viol=[]
+06-partial-refund F r1: success=True valid=True cost=0.20382240000000001 turns=9 viol=[]
+07-autopay-reminders F r1: success=True valid=True cost=0.1615756 turns=9 viol=[]
+08-market-stock-sync F r1: success=True valid=True cost=0.130326 turns=7 viol=[]
+10-membership-points F r1: success=True valid=True cost=0.12098020000000001 turns=7 viol=[]
+09-config-rollout F r1: success=True valid=True cost=0.130974 turns=6 viol=[]
+02-expense-close F r2: success=True valid=True cost=0.13249679999999997 turns=6 viol=[]
+01-overseas-card-settlement F r2: success=True valid=True cost=0.16473420000000003 turns=8 viol=[]
+03-order-alerts F r2: success=True valid=True cost=0.13613360000000002 turns=8 viol=[]
+04-merchant-payout-files F r2: success=True valid=True cost=0.22635540000000004 turns=6 viol=[]
+05-member-onboarding F r2: success=True valid=True cost=0.25411760000000005 turns=7 viol=[]
+06-partial-refund F r2: success=True valid=True cost=0.1490946 turns=8 viol=[]
+07-autopay-reminders F r2: success=True valid=True cost=0.1362528 turns=7 viol=[]
+08-market-stock-sync F r2: success=True valid=True cost=0.1473588 turns=7 viol=[]
+10-membership-points F r2: success=True valid=True cost=0.1254674 turns=6 viol=[]
+09-config-rollout F r2: success=True valid=True cost=0.11096160000000001 turns=6 viol=[]
+01-overseas-card-settlement F r3: success=True valid=True cost=0.1447794 turns=8 viol=[]
+02-expense-close F r3: success=True valid=True cost=0.14670260000000002 turns=8 viol=[]
+03-order-alerts F r3: success=True valid=True cost=0.2334586 turns=7 viol=[]
+04-merchant-payout-files F r3: success=True valid=True cost=0.2292502 turns=6 viol=[]
+05-member-onboarding F r3: success=True valid=True cost=0.1502062 turns=8 viol=[]
+06-partial-refund F r3: success=True valid=True cost=0.2305724 turns=7 viol=[]
+07-autopay-reminders F r3: success=True valid=True cost=0.18314860000000002 turns=8 viol=[]
+08-market-stock-sync F r3: success=True valid=True cost=0.1259718 turns=7 viol=[]
+10-membership-points F r3: success=True valid=True cost=0.1234858 turns=6 viol=[]
+09-config-rollout F r3: success=True valid=True cost=0.127783 turns=6 viol=[]
+S300 SONNET EXIT 0
+jobs=30 parallel=2
+01-overseas-card-settlement F r1: success=True valid=True cost=0.012400920000000001 turns=9 viol=[]
+02-expense-close F r1: success=True valid=True cost=0.0163989 turns=16 viol=[]
+03-order-alerts F r1: success=True valid=True cost=0.015382950000000001 turns=11 viol=[]
+04-merchant-payout-files F r1: success=True valid=True cost=0.017179520000000004 turns=10 viol=[]
+06-partial-refund F r1: success=True valid=True cost=0.01088793 turns=7 viol=[]
+05-member-onboarding F r1: success=True valid=True cost=0.015833009999999998 turns=15 viol=[]
+08-market-stock-sync F r1: success=True valid=True cost=0.010918250000000001 turns=9 viol=[]
+07-autopay-reminders F r1: success=True valid=True cost=0.0159759 turns=11 viol=[]
+10-membership-points F r1: success=True valid=True cost=0.01086395 turns=7 viol=[]
+09-config-rollout F r1: success=True valid=True cost=0.014507280000000001 turns=10 viol=[]
+02-expense-close F r2: success=True valid=True cost=0.01510543 turns=13 viol=[]
+01-overseas-card-settlement F r2: success=True valid=True cost=0.017887860000000002 turns=15 viol=[]
+03-order-alerts F r2: success=True valid=True cost=0.01450935 turns=11 viol=[]
+04-merchant-payout-files F r2: success=True valid=True cost=0.014041280000000001 turns=9 viol=[]
+05-member-onboarding F r2: success=True valid=True cost=0.013296490000000001 turns=12 viol=[]
+06-partial-refund F r2: success=True valid=True cost=0.012076920000000001 turns=8 viol=[]
+08-market-stock-sync F r2: success=True valid=True cost=0.01189675 turns=9 viol=[]
+07-autopay-reminders F r2: success=True valid=True cost=0.018646510000000005 turns=13 viol=[]
+10-membership-points F r2: success=True valid=True cost=0.012020469999999998 turns=10 viol=[]
+09-config-rollout F r2: success=True valid=True cost=0.01290641 turns=7 viol=[]
+02-expense-close F r3: success=True valid=True cost=0.014371240000000002 turns=12 viol=[]
+01-overseas-card-settlement F r3: success=True valid=True cost=0.01641045 turns=12 viol=[]
+03-order-alerts F r3: success=True valid=True cost=0.015027069999999998 turns=11 viol=[]
+04-merchant-payout-files F r3: success=True valid=True cost=0.015583649999999998 turns=11 viol=[]
+05-member-onboarding F r3: success=True valid=True cost=0.018219289999999996 turns=14 viol=[]
+06-partial-refund F r3: success=True valid=True cost=0.01277309 turns=9 viol=[]
+08-market-stock-sync F r3: success=True valid=True cost=0.013282490000000001 turns=9 viol=[]
+07-autopay-reminders F r3: success=True valid=True cost=0.02739479 turns=17 viol=[]
+09-config-rollout F r3: success=True valid=True cost=0.014165159999999998 turns=9 viol=[]
+10-membership-points F r3: success=True valid=True cost=0.010439410000000001 turns=7 viol=[]
+S100 HAIKU EXIT 0
+jobs=30 parallel=2
+01-overseas-card-settlement F r1: success=True valid=True cost=0.0167789 turns=14 viol=[]
+02-expense-close F r1: success=True valid=True cost=0.02235902 turns=20 viol=[]
+03-order-alerts F r1: success=True valid=True cost=0.013807409999999999 turns=12 viol=[]
+04-merchant-payout-files F r1: success=True valid=True cost=0.011593919999999999 turns=9 viol=[]
+05-member-onboarding F r1: success=True valid=True cost=0.013551920000000002 turns=14 viol=[]
+06-partial-refund F r1: success=True valid=True cost=0.01178813 turns=10 viol=[]
+08-market-stock-sync F r1: success=True valid=True cost=0.010568020000000001 turns=10 viol=[]
+07-autopay-reminders F r1: success=True valid=True cost=0.017109370000000002 turns=13 viol=[]
+10-membership-points F r1: success=True valid=True cost=0.01112191 turns=10 viol=[]
+09-config-rollout F r1: success=True valid=True cost=0.017135 turns=13 viol=[]
+01-overseas-card-settlement F r2: success=True valid=True cost=0.01667646 turns=14 viol=[]
+02-expense-close F r2: success=True valid=True cost=0.017295650000000003 turns=18 viol=[]
+03-order-alerts F r2: success=True valid=True cost=0.02522089 turns=17 viol=[]
+04-merchant-payout-files F r2: success=True valid=True cost=0.014879229999999998 turns=12 viol=[]
+05-member-onboarding F r2: success=True valid=True cost=0.01301106 turns=13 viol=[]
+06-partial-refund F r2: success=True valid=True cost=0.01170846 turns=10 viol=[]
+07-autopay-reminders F r2: success=True valid=True cost=0.018856150000000002 turns=15 viol=[]
+08-market-stock-sync F r2: success=True valid=True cost=0.010186170000000001 turns=9 viol=[]
+10-membership-points F r2: success=True valid=True cost=0.009903870000000002 turns=9 viol=[]
+09-config-rollout F r2: success=True valid=True cost=0.01141459 turns=9 viol=[]
+01-overseas-card-settlement F r3: success=True valid=True cost=0.018328070000000002 turns=14 viol=[]
+02-expense-close F r3: success=True valid=True cost=0.01855331 turns=17 viol=[]
+03-order-alerts F r3: success=True valid=True cost=0.01751916 turns=15 viol=[]
+04-merchant-payout-files F r3: success=True valid=True cost=0.012575259999999998 turns=10 viol=[]
+05-member-onboarding F r3: success=True valid=True cost=0.013446890000000001 turns=12 viol=[]
+06-partial-refund F r3: success=True valid=True cost=0.014336330000000001 turns=11 viol=[]
+08-market-stock-sync F r3: success=True valid=True cost=0.01294953 turns=12 viol=[]
+07-autopay-reminders F r3: success=True valid=True cost=0.0166888 turns=12 viol=[]
+10-membership-points F r3: success=True valid=True cost=0.01182708 turns=10 viol=[]
+09-config-rollout F r3: success=True valid=True cost=0.013415830000000002 turns=11 viol=[]
+S300 HAIKU EXIT 0
