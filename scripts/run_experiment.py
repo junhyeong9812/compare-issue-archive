@@ -175,10 +175,11 @@ def claude_cmd(prompt: str, model: str, budget: str) -> list:
     ]
 
 
-def sandbox_env(sb_home: Path) -> dict:
+def sandbox_env(sb_home: Path, sb_tmp: Path) -> dict:
     env = {k: v for k, v in os.environ.items()
            if not k.startswith(("CLAUDE", "ANTHROPIC")) and k not in ("OLDPWD", "PWD")}
-    env.update({"HOME": str(sb_home), "DISABLE_AUTOUPDATER": "1"})
+    # TMPDIR 도 실행 폴더 안으로: mktemp 결과가 호스트 /tmp 에 흩어지지 않고 실행 끝 rmtree 로 함께 치워진다
+    env.update({"HOME": str(sb_home), "TMPDIR": str(sb_tmp), "DISABLE_AUTOUPDATER": "1"})
     return env
 
 
@@ -193,7 +194,34 @@ def audit(log_text: str, arm: str, run_id: str = "") -> list:
     # 실행 안 Claude Code가 자기 백그라운드 작업 출력을 두는 경로(/tmp/claude-<uid>/-tmp-cia-runs-<자기 run_id>-work/...)는 열람이 아님
     if run_id:
         log_text = re.sub(rf"/tmp/claude-\d+/-tmp-cia-runs-{re.escape(run_id)}-work/", "<own-task-dir>/", log_text)
+        # 자기 TMPDIR(/tmp/cia-runs/<run_id>/tmp/claude-<uid>/...)가 /tmp/claude-\d+ 패턴에 걸리지 않게
+        log_text = log_text.replace(f"{HOST_RUNS}/{run_id}/tmp/", "<own-tmp>/")
     return sorted({p for p in pats if re.search(p, log_text)})
+
+
+def tmp_rm_outside(log_path: Path, run_id: str) -> list:
+    """Bash 명령 중 rm 이 자기 실행 폴더 밖 /tmp 경로를 지우는 조각(표시용 — valid 에는 영향 없음)."""
+    own = f"{HOST_RUNS}/{run_id}/"
+    hits = []
+    for line in log_path.read_text(errors="replace").splitlines():
+        try:
+            ev = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if ev.get("type") != "assistant":
+            continue
+        for blk in ev.get("message", {}).get("content", []) or []:
+            if blk.get("type") != "tool_use" or blk.get("name", "").lower() != "bash":
+                continue
+            for seg in re.split(r"&&|\|\||[;|\n]", (blk.get("input") or {}).get("command", "")):
+                words = seg.split()
+                if not words or words[0] != "rm":
+                    continue
+                bad = [w.strip("'\"") for w in words[1:] if w.strip("'\"").startswith("/tmp/")
+                       and not w.strip("'\"").startswith(own)]
+                if bad and seg.strip() not in hits:
+                    hits.append(seg.strip())
+    return hits
 
 
 _card_sigs: dict = {}
@@ -332,6 +360,7 @@ def run_one(case: str, arm: str, rep: int, model: str, budget: str, timeout_s: i
     run_dir = HOST_RUNS / run_id
     sb_home = run_dir / "home"
     (sb_home / ".claude").mkdir(parents=True)
+    (run_dir / "tmp").mkdir()
     (sb_home / ".sdkman").symlink_to(REAL_HOME / ".sdkman")  # 케이스 test.sh 가 $HOME/.sdkman 의 JDK 를 쓴다
     (sb_home / ".claude" / "settings.json").write_text(json.dumps({"permissions": {"deny": DENY_RULES}}))
     shutil.copytree(CASES / case, run_dir / "work")
@@ -346,7 +375,7 @@ def run_one(case: str, arm: str, rep: int, model: str, budget: str, timeout_s: i
     timed_out = False
     with open(log_path, "wb") as lf:
         try:
-            p = subprocess.run(claude_cmd(prompt, model, budget), cwd=run_dir / "work", env=sandbox_env(sb_home),
+            p = subprocess.run(claude_cmd(prompt, model, budget), cwd=run_dir / "work", env=sandbox_env(sb_home, run_dir / "tmp"),
                                stdin=subprocess.DEVNULL, stdout=lf, stderr=subprocess.STDOUT, timeout=timeout_s)
             rc = p.returncode
         except subprocess.TimeoutExpired:
@@ -376,7 +405,7 @@ def run_one(case: str, arm: str, rep: int, model: str, budget: str, timeout_s: i
         "web_fetch_requests": (usage.get("server_tool_use") or {}).get("web_fetch_requests"),
         "tool_calls": parsed["tool_calls"], "tools": parsed["tools"], "archive_tool_calls": parsed["archive_reads"], "card_tool_calls": parsed["card_reads"],
         "first_edit_turn": parsed["first_edit_turn"], "archive_result_bytes": parsed["archive_result_bytes"],
-        "audit_violations": violations, "valid": not violations and parsed["result"] is not None,
+        "audit_violations": violations, "tmp_rm_outside": tmp_rm_outside(log_path, run_id), "valid": not violations and parsed["result"] is not None,
         "tampered": j["tampered"], "test_pass": j["test_pass"], "hidden_pass": j["hidden_pass"],
         "success": j["test_pass"] and j["hidden_pass"] and not j["tampered"],
         "hidden_tail": j["hidden_tail"], "hidden_stderr_tail": j["hidden_stderr_tail"],
