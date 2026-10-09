@@ -1,0 +1,43 @@
+diff -ruN a05/hbonboard/config.py b05/hbonboard/config.py
+--- a/hbonboard/config.py	2026-10-09 02:23:42.921347772 +0900
++++ b/hbonboard/config.py	2026-10-09 02:23:42.988696312 +0900
+@@ -15,6 +15,9 @@
+     idchk_bin: str = field(default_factory=_default_idchk_bin)
+     idchk_home: str = ""
+     idchk_timeout: float = 10.0
++    # idchk only checks the first 12 lines of a batch call and drops the rest
++    # silently (exit 0, line count echoed back), so never send more per call
++    idchk_batch_lines: int = 12
+     # sign-up form rules (member app screen spec v5)
+     name_max_chars: int = 20
+     adult_age: int = 19
+diff -ruN a05/hbonboard/services/verification.py b05/hbonboard/services/verification.py
+--- a/hbonboard/services/verification.py	2026-10-09 02:23:42.918758544 +0900
++++ b/hbonboard/services/verification.py	2026-10-09 02:23:42.988975362 +0900
+@@ -16,12 +16,20 @@
+         fresh = sorted(self.repo.by_kyc_state(KYC_NEW), key=lambda m: m.member_id)
+         if not fresh:
+             return [], 0
+-        ticket = self.client.submit(build_batch(fresh))
+-        for member in fresh:
+-            member.kyc_state = KYC_SENT
+-            member.kyc_job = ticket.job_id
+-            member.history.append(KYC_SENT)
+-        return [ticket.job_id], len(fresh)
++        by_id = {m.member_id: m for m in fresh}
++        requests = build_batch(fresh)
++        size = self.settings.idchk_batch_lines
++        jobs = []
++        for start in range(0, len(requests), size):
++            chunk = requests[start:start + size]
++            ticket = self.client.submit(chunk)
++            jobs.append(ticket.job_id)
++            for request in chunk:
++                member = by_id[request.ref]
++                member.kyc_state = KYC_SENT
++                member.kyc_job = ticket.job_id
++                member.history.append(KYC_SENT)
++        return jobs, len(fresh)
+ 
+     def _collect(self):
+         resolved, waiting = [], []

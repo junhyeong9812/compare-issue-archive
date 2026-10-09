@@ -1,0 +1,19 @@
+diff -ruN a/src/infra/RefundFileWriter.java b/src/infra/RefundFileWriter.java
+--- a/src/infra/RefundFileWriter.java	2026-10-09 02:24:29.236287468 +0900
++++ b/src/infra/RefundFileWriter.java	2026-10-09 02:24:29.271332470 +0900
+@@ -13,9 +13,13 @@
+ public final class RefundFileWriter {
+     private RefundFileWriter() {}
+ 
+-    /** Merchant reference printed on the PG settlement file so finance can trace the refund to our order. */
++    /**
++     * Merchant reference printed on the PG settlement file so finance can trace the refund to our order.
++     * It must differ per returned item: inside one batch the PG pays lines with the same TID, amount and
++     * reference only once, so the order number alone collapses two identical items into one refund.
++     */
+     public static String merchantRef(RefundLine line) {
+-        return Refs.sanitize(line.orderNo());
++        return Refs.sanitize(line.orderNo() + "-" + line.lineNo());
+     }
+ 
+     public static String format(List<RefundLine> lines) {

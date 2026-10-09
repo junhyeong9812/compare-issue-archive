@@ -1,0 +1,60 @@
+--- a/src/service/RefundBatchJob.java	2026-10-09 11:59:03.763833653 +0900
++++ b/src/service/RefundBatchJob.java	2026-10-09 11:59:03.799369686 +0900
+@@ -10,9 +10,11 @@
+ import java.time.LocalDate;
+ import java.time.format.DateTimeFormatter;
+ import java.util.ArrayList;
++import java.util.HashSet;
+ import java.util.LinkedHashMap;
+ import java.util.List;
+ import java.util.Map;
++import java.util.Set;
+ 
+ /**
+  * Nightly refund run: every pending refund line goes to the PG in batches of
+@@ -43,9 +45,13 @@
+         List<RefundLine> pending = uniquePending();
+         List<String> batchIds = new ArrayList<>();
+         int completed = 0;
+-        for (int start = 0, chunk = 1; start < pending.size(); start += maxLines, chunk++) {
+-            List<RefundLine> part = pending.subList(start, Math.min(pending.size(), start + maxLines));
+-            String batchId = runId + "-" + chunk;
++        List<List<RefundLine>> batches = new ArrayList<>();
++        for (int start = 0; start < pending.size(); start += maxLines) {
++            batches.addAll(splitSameTidAmount(pending.subList(start, Math.min(pending.size(), start + maxLines))));
++        }
++        for (int i = 0; i < batches.size(); i++) {
++            List<RefundLine> part = batches.get(i);
++            String batchId = runId + "-" + (i + 1);
+             Path file = RefundFileWriter.write(workDir, batchId, part);
+             int accepted = pg.refund(mid, batchId, file);
+             if (accepted != part.size()) {
+@@ -59,6 +65,28 @@
+         return new RunResult(runId, List.copyOf(batchIds), pending.size(), completed, awaiting);
+     }
+ 
++    /**
++     * Inside one batch the PG refunds lines with the same TID and amount only once (the third column is
++     * not looked at), so two identical items of one order must go out in different batches. Lines that
++     * would repeat a (TID, amount) already in a batch move on to the next one.
++     */
++    private static List<List<RefundLine>> splitSameTidAmount(List<RefundLine> lines) {
++        List<List<RefundLine>> rounds = new ArrayList<>();
++        List<Set<String>> keys = new ArrayList<>();
++        for (RefundLine l : lines) {
++            String key = l.tid() + "#" + l.amount();
++            int r = 0;
++            while (r < rounds.size() && keys.get(r).contains(key)) r++;
++            if (r == rounds.size()) {
++                rounds.add(new ArrayList<>());
++                keys.add(new HashSet<>());
++            }
++            rounds.get(r).add(l);
++            keys.get(r).add(key);
++        }
++        return rounds;
++    }
++
+     /** A line queued twice by a CS double-click must be refunded once. */
+     private List<RefundLine> uniquePending() {
+         Map<String, RefundLine> byKey = new LinkedHashMap<>();

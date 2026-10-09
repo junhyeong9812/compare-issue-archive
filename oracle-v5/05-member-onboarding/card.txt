@@ -1,0 +1,27 @@
+issue/idchk/batch-head-cutoff
+카드: archive-v4-stale/issue/idchk/batch-head-cutoff/ (한빛페이 가상 아카이브 낡은 판 — 4차 F′는 이 폴더를 /tmp/cia-lib40/issue 로 복사. 맞는 판은 archive-v3 같은 경로)
+v4 근거(낡은 카드):
+  낡은 규칙(카드, idchk 2.4.x, 2024-03 사건) = "idchk batch는 호출당 앞 20줄만 판정하고 21번째 줄부터 exit 0·전체 줄 수 출력 그대로 조용히 버린다(result = E31 영구)". 대처 = 20줄 이하 분할.
+  현재 규칙(바이너리, idchk --version = idchk 3.2.0) = 호출당 앞 12줄만 판정, 13번째 줄부터 버림. 메커니즘·출력·오류 코드는 같고 상한만 다르다.
+  낡은 카드를 따른 수정(stale-fix.patch: idchk_batch_lines=20 분할) — test.sh 실패(23명 중 8명 대기), hidden 실패(5개 중 4개 — 정확히 12명만 통과).
+  단서: idchk --version 이 3.2.0(카드 2.4.x), 20줄 batch 후 job 의 v1+v2 = 12 < in 20, result 13번째 줄 E31 (stale.md).
+  누출 처리: 3차 경로명 batch-head-twelve 의 "twelve"가 현재 상한(12)을 암시해, 메인이 낡은 판 경로를 idchk/batch-head-cutoff 로 바꿨다(인덱스 1행 경로만 변경).
+3차 근거(맞는 규칙 기준, 참고):
+  카드 사건은 가맹점 대표자 정기 재확인 배치(월초 수십 건을 한 파일로 전송 → 일부 가맹점이 '재확인 미완료'로 정산 보류, 가맹점 문의로 발견)이고,
+  이번 케이스는 신규 회원 가입 본인확인 실행(가입자 23명을 한 파일로 전송 → 11명이 '확인 대기'에 영구 정체)이다.
+근본 원인: hbonboard/services/verification.py VerificationService._send_new — 새 회원 전부를 batch 한 번으로 보낸다. 앞 12줄(전화번호 순) 뒤는 벤더가 버리고,
+  _collect는 E31을 "아직 처리 중"으로 보고 다음 실행에도 재전송하지 않아 영구 대기.
+올바른 해결: 요청을 12줄 이하로 나눠 batch를 여러 번 호출(fix.patch: config idchk_batch_lines=12 + _send_new 분할 전송).
+  대안 정답(검증함): E31로 남은 요청을 같은 실행 안에서 다시 batch로 보내는 반복 — hidden 통과.
+증상 파일: hbonboard/services/backlog.py(운영 대기 현황) · api/handlers.get_member · tests/test_onboarding_flow.py(E2E). 원인 파일: hbonboard/services/verification.py
+  (경로: api/handlers.run_verification → services/verification.run → _send_new → kyc/requests.build_batch → kyc/client.submit → vendor/bin/idchk).
+미끼:
+  1) kyc/client.py submit 의 "읽은 줄 수 == 보낸 줄 수" 확인 — 벤더가 전체 줄 수를 돌려주므로 항상 통과, 무죄.
+  2) kyc/client.py result 의 E31 → None("아직 처리 중") 해석 — 수상해 보이지만 E31 자체는 정확. 거절로 바꾸면 둘 다 실패.
+  3) kyc/requests.py build_batch 의 회원 ID dedupe + 전화번호 정렬 — 정체 회원이 무작위로 보이게 만드는 원인일 뿐 무죄. 정렬 제거해도 실패.
+  4) util/text.vendor_name(공백 제거)·util/phone.normalize_phone(+82 변환) — 이름·번호 형식 의심, 무죄.
+  5) util/cache.py TTLCache / 대기 현황 캐시 — 가입·실행 후 무효화됨, 무죄.
+hidden: 다른 날(11/20) 가입 30명·정확히 12명·13명·이틀 연속(7명 → 18명)·샘플 23명을 각 실행 1회 후,
+  vendor/bin/idchk result 로 벤더에 판정이 실제로 있는지와 회원 상태가 그 판정(1=active, 2=rejected)과 같은지, 문자 1건씩, 대기 0을 검사.
+  우회 확인: E31을 active로 끝단 처리(둘 다 실패), 벤더 없이 전원 active(둘 다 실패), E31→rejected 미끼(둘 다 실패), 정렬 제거 미끼(둘 다 실패),
+  캐시·건수 확인 제거 미끼(둘 다 실패), 분할 크기 13(둘 다 실패), 분할 크기 10(둘 다 통과 — 상한 이하라 정답), 남은 요청 재전송 반복(둘 다 통과 — 대안 정답).

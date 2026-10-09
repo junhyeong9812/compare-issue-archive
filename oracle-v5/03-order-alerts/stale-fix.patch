@@ -1,0 +1,26 @@
+--- a/src/messaging/keys.ts
++++ b/src/messaging/keys.ts
+@@ -1,3 +1,4 @@
++import { createHash } from "crypto";
+ import { OrderEventKind } from "../domain/order";
+ 
+ const KIND_CODE: Record<OrderEventKind, string> = {
+@@ -7,11 +8,15 @@
+ };
+ 
+ /**
+- * 알림 메시지 키 — 사내 키 규약 `<네임스페이스>.<이벤트>.<업무 식별자>`.
+- * 소비 측은 이 키로 이미 처리한 메시지를 걸러낸다(재전달 대비).
++ * 알림 메시지 키 — `<네임스페이스>.<이벤트>.<업무 식별자>:<전체 키의 해시 12자>`.
++ * mqpub 는 한 배치 안에서 키의 끝 12바이트가 같은 메시지를 첫 것만 남기고 조용히 버린다.
++ * 업무 식별자 끝자리가 겹치는 키는 서로 덮이므로, 메시지마다 다른 결정적 해시를 맨 끝에 둔다.
++ * 소비 측은 이 키로 이미 처리한 메시지를 걸러낸다(재전달 대비) — 같은 알림은 늘 같은 키.
+  */
+ export function messageKey(namespace: string, kind: OrderEventKind, orderNo: string): string {
+-  return `${namespace}.${KIND_CODE[kind]}.${orderNo}`;
++  const logical = `${namespace}.${KIND_CODE[kind]}.${orderNo}`;
++  const tail = createHash("sha1").update(logical).digest("hex").slice(0, 12);
++  return `${logical}:${tail}`;
+ }
+ 
+ export function kindFromCode(code: string): OrderEventKind | undefined {

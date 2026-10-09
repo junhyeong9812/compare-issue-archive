@@ -59,6 +59,14 @@ def set_summary_file(name: str) -> None:
     global SUMMARY_FILE
     SUMMARY_FILE = name
 
+
+PROMPT_SUFFIX = ""  # 5차-a G1(프롬프트 방어): --prompt-suffix-file 내용을 B 외 arm 프롬프트 끝에 붙인다
+
+
+def set_prompt_suffix(path: str) -> None:
+    global PROMPT_SUFFIX
+    PROMPT_SUFFIX = ("\n\n" + Path(path).read_text().strip()) if path else ""
+
 PROMPT_BASE = (
     "현재 디렉터리의 프로젝트에 버그 보고가 들어왔다. TASK.md 를 읽고 문제의 근본 원인을 찾아 고쳐라.\n"
     "완료 기준: 현재 디렉터리에서 `bash test.sh` 가 통과한다. 테스트 파일과 test.sh 는 수정하지 마라.\n"
@@ -95,6 +103,10 @@ def card_path(case: str) -> str:
 
 
 def arm_prompt(arm: str, case: str) -> str:
+    return _arm_prompt(arm, case) + (PROMPT_SUFFIX if arm != "B" else "")
+
+
+def _arm_prompt(arm: str, case: str) -> str:
     if arm == "P":
         return PROMPT_CARD.format(card_dir=card_path(case))
     if arm == "L":
@@ -409,10 +421,12 @@ def main() -> int:
     ap.add_argument("--results-dir", default="results")
     ap.add_argument("--archive-dir", default=str(ARCHIVE_DIR))
     ap.add_argument("--summary-file", default=SUMMARY_FILE)
+    ap.add_argument("--prompt-suffix-file", default="")
     a = ap.parse_args()
     set_dirs(a.cases_dir, a.oracle_dir, a.results_dir)
     set_archive(a.archive_dir)
     set_summary_file(a.summary_file)
+    set_prompt_suffix(a.prompt_suffix_file)
 
     HOST_RUNS.mkdir(exist_ok=True)
     RAW.mkdir(parents=True, exist_ok=True)

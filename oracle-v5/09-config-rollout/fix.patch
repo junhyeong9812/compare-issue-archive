@@ -1,0 +1,13 @@
+diff -ruN a/steps/20-apply.sh b/steps/20-apply.sh
+--- a/steps/20-apply.sh	2026-10-09 02:32:40.359827510 +0900
++++ b/steps/20-apply.sh	2026-10-09 02:32:40.404321065 +0900
+@@ -15,3 +15,9 @@
+   log "$key -> $chg"
+ done < "$dir/changes.tsv"
+ log "applied $(wc -l < "$dir/applied.tsv" | tr -d ' ') changes"
++
++# The service keeps answering lookups of keys that already had a value with
++# the value as of its last mark; the changes above only become visible to
++# `get` (and so to rendering) after the next mark.
++mark=$(cfg_mark) || die "could not mark the applied changes"
++log "changes visible at $mark"
