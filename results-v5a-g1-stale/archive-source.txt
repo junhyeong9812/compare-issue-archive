@@ -1,0 +1,1 @@
+archive-v4-stale (사전 복사 /tmp/cia-lib5x, 원본과 diff 0 확인)
