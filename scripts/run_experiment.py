@@ -51,6 +51,14 @@ def set_archive(d: str) -> None:
     ARCHIVE_DIR = Path(d)
     SB_ARCHIVE = str(ARCHIVE_DIR / "issue")
 
+
+SUMMARY_FILE = "summary.txt"  # 4차 낡은 카드 arm L′은 --summary-file summary-stale.txt
+
+
+def set_summary_file(name: str) -> None:
+    global SUMMARY_FILE
+    SUMMARY_FILE = name
+
 PROMPT_BASE = (
     "현재 디렉터리의 프로젝트에 버그 보고가 들어왔다. TASK.md 를 읽고 문제의 근본 원인을 찾아 고쳐라.\n"
     "완료 기준: 현재 디렉터리에서 `bash test.sh` 가 통과한다. 테스트 파일과 test.sh 는 수정하지 마라.\n"
@@ -90,9 +98,9 @@ def arm_prompt(arm: str, case: str) -> str:
     if arm == "P":
         return PROMPT_CARD.format(card_dir=card_path(case))
     if arm == "L":
-        summary = (ORACLE / case / "summary.txt").read_text().strip()
+        summary = (ORACLE / case / SUMMARY_FILE).read_text().strip()
         if not summary:
-            raise ValueError(f"{case}: summary.txt 비어 있음")
+            raise ValueError(f"{case}: {SUMMARY_FILE} 비어 있음")
         return PROMPT_SUMMARY.format(summary=summary)
     return ARM_PROMPTS[arm].format(archive=SB_ARCHIVE)
 CARD_FILE = re.compile(r"cia-lib\d*/issue/\S*(1-question|2-summary|3-answer)\.md")
@@ -176,11 +184,45 @@ def audit(log_text: str, arm: str, run_id: str = "") -> list:
     return sorted({p for p in pats if re.search(p, log_text)})
 
 
+_card_sigs: dict = {}
+
+
+def card_signatures() -> dict:
+    """아카이브 카드 폴더(issue/<분류>/<slug>) → 카드 본문 서명 줄들(각 .md 파일의 가장 긴 줄).
+    `cd` 뒤 상대 경로·glob 처럼 입력 경로로는 못 잡는 열람을 도구 결과 내용으로 잡는다."""
+    key = str(ARCHIVE_DIR)
+    if key not in _card_sigs:
+        sigs = {}
+        for ans in (ARCHIVE_DIR / "issue").glob("*/*/3-answer.md"):
+            d = ans.parent
+            lines = []
+            for f in sorted(d.glob("[123]-*.md")):
+                ls = [l.strip() for l in f.read_text(errors="replace").splitlines()]
+                best = max(ls, key=len, default="")
+                if len(best) >= 30:
+                    lines.append(best[:120])
+            if lines:
+                sigs[d.relative_to(ARCHIVE_DIR / "issue").as_posix()] = lines
+        _card_sigs[key] = sigs
+    return _card_sigs[key]
+
+
+def result_text(content) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "\n".join(b.get("text", "") for b in content if isinstance(b, dict))
+    return ""
+
+
 def parse_log(log_path: Path) -> dict:
     out = {"result": None, "tool_calls": 0, "tools": {}, "archive_reads": 0, "card_reads": 0,
-           "first_edit_turn": None, "archive_result_bytes": 0}
+           "first_edit_turn": None, "archive_result_bytes": 0, "card_dirs": [], "card_result_bytes": {}}
     turn = 0
     archive_ids = set()
+    card_ids = {}  # tool_use id → 그 호출이 가리킨 카드 폴더들(issue/ 기준 상대 경로)
+    # 카드 폴더 = issue/<분류>/<slug> — `cd 폴더 && cat ...`처럼 끝 슬래시가 없는 형태도 잡는다(.md 파일은 제외)
+    card_dir_re = re.compile(rf"{re.escape(SB_ARCHIVE)}/([\w.-]+/(?![\w.-]*\.md\b)[\w.-]+)(?![\w.-])")
     seen_msgs = set()
     for line in log_path.read_text(errors="replace").splitlines():
         try:
@@ -208,11 +250,29 @@ def parse_log(log_path: Path) -> dict:
                         out["first_edit_turn"] = turn
                     if CARD_FILE.search(inp):
                         out["card_reads"] += 1
+                    dirs = sorted(set(card_dir_re.findall(inp)))
+                    if dirs:
+                        card_ids[blk.get("id")] = dirs
+                        out["card_dirs"] += [d for d in dirs if d not in out["card_dirs"]]
         elif ev.get("type") == "user":
             content = ev.get("message", {}).get("content", [])
             for blk in content if isinstance(content, list) else []:
+                if blk.get("type") == "tool_result" and (ARCHIVE_DIR / "issue").is_dir():
+                    text = result_text(blk.get("content"))
+                    hits = [d for d, sig in card_signatures().items() if any(l in text for l in sig)]
+                    if hits:
+                        n = len(text.encode())
+                        for d in hits:
+                            if d not in out["card_dirs"]:
+                                out["card_dirs"].append(d)
+                            if d not in card_ids.get(blk.get("tool_use_id"), []):
+                                out["card_result_bytes"][d] = out["card_result_bytes"].get(d, 0) + n
                 if blk.get("type") == "tool_result" and blk.get("tool_use_id") in archive_ids:
-                    out["archive_result_bytes"] += len(json.dumps(blk.get("content"), ensure_ascii=False).encode())
+                    n = len(json.dumps(blk.get("content"), ensure_ascii=False).encode())
+                    out["archive_result_bytes"] += n
+                    # 한 호출이 카드 여러 개를 가리키면 결과 바이트를 카드마다 같은 값으로 센다(상한 추정)
+                    for d in card_ids.get(blk.get("tool_use_id"), []):
+                        out["card_result_bytes"][d] = out["card_result_bytes"].get(d, 0) + n
         elif ev.get("type") == "result":
             out["result"] = ev
     return out
@@ -242,7 +302,8 @@ def judge(case: str, work: Path) -> dict:
         t = subprocess.run(["bash", "test.sh"], cwd=jd, capture_output=True, timeout=600)
         h = subprocess.run(["bash", "hidden.sh"], cwd=jd, capture_output=True, timeout=600)
         return {"tampered": tampered, "test_pass": t.returncode == 0, "hidden_pass": h.returncode == 0,
-                "hidden_tail": h.stdout.decode(errors="replace")[-400:] if h.returncode else ""}
+                "hidden_tail": h.stdout.decode(errors="replace")[-400:] if h.returncode else "",
+                "hidden_stderr_tail": h.stderr.decode(errors="replace")[-800:] if h.returncode else ""}
     finally:
         shutil.rmtree(jd, ignore_errors=True)
 
@@ -286,6 +347,10 @@ def run_one(case: str, arm: str, rep: int, model: str, budget: str, timeout_s: i
     usage = res.get("usage") or {}
     violations = audit(log_path.read_text(errors="replace"), arm, run_id)
     j = judge(case, run_dir / "work")
+    try:
+        target = card_path(case).split("/issue/", 1)[1]
+    except (ValueError, OSError):
+        target = None
     row = {
         "run_id": run_id, "case": case, "arm": arm, "rep": rep, "model": model,
         "rc": rc, "timed_out": timed_out, "wall_s": round(wall, 1),
@@ -302,9 +367,18 @@ def run_one(case: str, arm: str, rep: int, model: str, budget: str, timeout_s: i
         "audit_violations": violations, "valid": not violations and parsed["result"] is not None,
         "tampered": j["tampered"], "test_pass": j["test_pass"], "hidden_pass": j["hidden_pass"],
         "success": j["test_pass"] and j["hidden_pass"] and not j["tampered"],
-        "hidden_tail": j["hidden_tail"], "creds_written_back": creds_written_back,
+        "hidden_tail": j["hidden_tail"], "hidden_stderr_tail": j["hidden_stderr_tail"],
+        "card_dirs_read": parsed["card_dirs"], "target_card": target,
+        "target_card_read": target in parsed["card_dirs"] if target else None,
+        "card_result_bytes": parsed["card_result_bytes"], "creds_written_back": creds_written_back,
         "log": str(log_path.relative_to(ROOT)),
     }
+    if not row["success"]:
+        # 실패·변조 실행은 에이전트가 고친 작업 폴더를 남긴다(의존성·빌드 산출물 제외)
+        kept = RESULTS / "failed" / run_id
+        shutil.copytree(run_dir / "work", kept, symlinks=True,
+                        ignore=shutil.ignore_patterns("node_modules", "target", "build", "__pycache__", ".gradle"))
+        row["kept_work"] = str(kept.relative_to(ROOT))
     append_row(row)
     shutil.rmtree(run_dir, ignore_errors=True)
     return row
@@ -334,9 +408,11 @@ def main() -> int:
     ap.add_argument("--oracle-dir", default="oracle")
     ap.add_argument("--results-dir", default="results")
     ap.add_argument("--archive-dir", default=str(ARCHIVE_DIR))
+    ap.add_argument("--summary-file", default=SUMMARY_FILE)
     a = ap.parse_args()
     set_dirs(a.cases_dir, a.oracle_dir, a.results_dir)
     set_archive(a.archive_dir)
+    set_summary_file(a.summary_file)
 
     HOST_RUNS.mkdir(exist_ok=True)
     RAW.mkdir(parents=True, exist_ok=True)
