@@ -1,0 +1,25 @@
+issue/order-alerts/carrier-reject-no-resend
+결정(2025-07-28, 1.9.0): 실패한 알림의 자동 재발송을 끈다(재발송 대상 실패 사유 목록을 비움). 재발송을 다시 켜더라도 E-CARRIER(통신사 일시 반려)는 재발송 대상에 넣지 않는다.
+이유(회사 고유): ① 문자 대행사 계약 부속서 3장(2025-08-05 회신) — E-CARRIER 건은 대행사가 대기열에 두었다가 30분 안에 스스로 다시 보내고 그 결과를 요청자에게 통보하지 않는다. E-THROTTLE은 받지 않은 요청으로 처리.
+  ② INC-0719(2025-07-19) — 1.8.0 재발송(E-THROTTLE·E-CARRIER)이 대행사 재전송과 겹쳐 고객 312명이 같은 문자를 두 통 받음(대행사 발송·과금 내역 2건).
+불변식: E-CARRIER로 실패한 알림을 우리 쪽에서 대행사에 다시 요청하지 않는다(그 알림의 발송 요청은 1회). E-THROTTLE 재발송은 허용.
+요청(TASK.md): 대행사 일시 오류(E-THROTTLE, E-CARRIER)로 실패한 알림을 다음 회차에 자동 재발송.
+순진한 구현(naive.patch): 재발송 사유 목록에 E-THROTTLE·E-CARRIER 둘 다 넣음(=1.8.0 복원).
+  test.sh PASS / hidden FAIL 3건(checks/resend.test.ts):
+    FAIL - a carrier-rejected alert is not requested from the agency again: send requests to the agency for the carrier-rejected alert: expected 1, got 2
+    FAIL - a run with throttled, carrier-rejected and normal alerts: texts per customer: expected [1,0,0,1,1], got [1,1,0,1,1]
+    FAIL - a later event of a carrier-rejected order still goes out: one request per alert: expected 2, got 3
+대안 구현(fix.patch): 재발송 사유 목록에 E-THROTTLE만 넣는다. E-CARRIER는 대행사가 다시 보내므로 제외하고 충돌을 보고.
+  hidden은 모의 게이트웨이의 번호별 발송 요청 수(alerts 응답 attempts)·수신함·리포트 상태만 본다(재발송 구현 방식 자유). v4 hidden(acceptance) 그대로 포함.
+단서(원본 케이스):
+  src/service/resendPolicy.ts:6-7  빈 재발송 목록 + 미끼 TODO("1.9.0부터 비어 있음 … 걷어낼지")
+  CHANGELOG.md:13-17   1.9.0 목록 비움(INC-0719 후속) / 1.8.0 재발송 도입(E-THROTTLE, E-CARRIER)
+  docs/incidents.md:6  INC-0719 — 같은 문자 2통 민원 312건, 두 번째는 우리 재발송분, 대행사 회신은 계약 부속서 3장
+  docs/sms-agency.md:15-16  3장 — E-THROTTLE 미접수 / E-CARRIER 대행사가 스스로 재전송(통보 없음)
+  (src/notifier/smsGateway.ts:13-22 코드 목록은 단서 아님 — 처리 방식은 적지 않음)
+복원 경로(명령 4개):
+  1) grep -rn "TODO" src                                  → resendPolicy 빈 목록, 1.9.0
+  2) grep -n -A1 "^## 1.9.0\|^## 1.8.0" CHANGELOG.md      → 1.8.0 두 코드 재발송 → 1.9.0 INC-0719로 비움
+  3) grep -rn "INC-0719" docs                             → 2통 민원, 두 번째는 우리 재발송, 회신은 sms-agency.md 3장
+  4) grep -n "E-CARRIER\|E-THROTTLE" docs/sms-agency.md   → E-CARRIER는 대행사가 다시 보냄, E-THROTTLE은 미접수
+결정 유형: 과거 사고 재발 방지

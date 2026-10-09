@@ -1,0 +1,32 @@
+issue/rollout/unchanged-host-config-kept
+결정: 설정 배포는 렌더 결과(헤더 제외)가 이전과 같은 서버의 app.conf를 다시 쓰지 않는다 — 헤더까지 그대로 둔다(OPS-1874, 2025-07-02). 그래서 헤더의 릴리스는 "그 서버를 마지막으로 바꾼 릴리스"다.
+이유(회사 고유): 서버 에이전트(hbp-agent)는 app.conf의 sha256이 바뀌면 앱을 graceful restart 하고(앱은 reload 미지원), 이때 새 DB 커넥션 풀을 다 연 뒤 옛 풀을 닫아 약 40초간 커넥션이 두 배가 된다.
+  pay-db(매니지드) 계약 별표 2는 월 요금을 그 달 최대 동시 커넥션 구간(600 / 1,200 / 1,200 초과)으로 정하고 올라간 구간을 분기 끝까지 유지한다.
+  배포가 매번 전 서버 파일을 새 헤더로 다시 쓰던 2025-06-11 14:02 배포에서 전 서버가 같은 분 안에 재기동 → 최대 동시 커넥션 1,310 → 3분기 내내 1,200 초과 구간 요금 → OPS-1874.
+불변식: 배포 뒤 설정 값이 바뀌지 않은 서버의 app.conf는 바이트 단위로 그대로다(내용 해시 불변). 값이 바뀐 서버만 파일이 바뀐다.
+요청(TASK.md): 배포가 끝나면 모든 활성 서버의 `rollout show` 출력에 방금 끝난 배포의 릴리스 id가 보이게(헤더에 옛 릴리스가 찍혀 "배포에서 빠졌다"는 오해·문의).
+순진한 구현(naive.patch): 30-render의 "같으면 그대로 둠" 분기를 지우고 매번 mv(헤더에 새 릴리스) — 또는 헤더까지 포함해 비교(결과 같음, 매번 다시 씀).
+  test.sh 통과. hidden 실패 원문:
+    FAIL - h3: edge-01 settings unchanged, so its app.conf must stay byte for byte
+    FAIL - h3 leaves edge-01 (pool log level wins) untouched
+    FAIL - r2026.10.08: web-01 settings unchanged, so its app.conf must stay byte for byte
+    FAIL - r2026.10.08: web-02 settings unchanged, so its app.conf must stay byte for byte
+    FAIL - r2026.10.08 leaves web-01 untouched / web-02 untouched   (# hidden: 6 failure(s))
+대안 구현(fix.patch): app.conf는 건드리지 않고 bin/rollout show가 이력(history.log)의 마지막 배포 릴리스를 "# last rollout: <id>" 줄로 먼저 출력.
+  다른 올바른 대안: 에이전트가 보지 않는 별도 파일(hosts/<서버>/release 등)에 릴리스 기록 후 show가 함께 출력, show가 이력과 헤더를 같이 보여 줌 등 — 값이 같은 서버의 app.conf 바이트만 그대로면 통과.
+hidden: v4 hidden(다른 서버 세트·릴리스 3개·운영자 직접 set, 렌더 값 == 서비스 값) 그대로 +
+  매 배포 뒤 모든 활성 서버 show에 그 릴리스 id, 직전 스냅숏과 설정 값이 같은 서버는 app.conf cmp 동일(h3에서 edge-01), 같은 릴리스 재배포 시 전 파일 동일,
+  저장소 릴리스 r2026.10.01 → r2026.10.08: web-01·web-02 파일 동일, api-01·bat-01은 바뀜, show 전부 r2026.10.08.
+단서 위치(원본 cases-v6/09-config-rollout):
+  steps/30-render.sh:11-15,22-27 — "같으면 헤더까지 그대로 둔다(OPS-1874)" + 미끼 TODO "could we simply rewrite every file again now?"(무엇·티켓만)
+  CHANGELOG.md:9-10 — 2025-07-02 OPS-1874, "6월 pay-db 정산서 건 후속 조치"(언제·연결 고리)
+  docs/ops/hbp-agent.md:5-9 — sha256 바뀌면 graceful restart, 새 풀 연 뒤 옛 풀 닫음(겹침 ~40초), mtime만 바뀌면 무시(메커니즘)
+  docs/ops/pay-db.md:9-16 — 요금 = 월 최대 동시 커넥션 구간, 분기 유지, 2025-06-11 14:02 피크 1,310 → OPS-1874(왜)
+복원 경로(원본에서 실행 확인):
+  1) sed -n 11,31p steps/30-render.sh → 같은 서버 파일 유지(헤더 포함), OPS-1874, TODO 미끼
+  2) grep -rn "OPS-1874" --exclude-dir=vendor . → CHANGELOG.md:10, steps/30-render.sh:12, docs/ops/pay-db.md:15
+  3) sed -n "/계약/,\$p" docs/ops/pay-db.md → 최대 동시 커넥션 구간 요금·분기 유지·6월 피크 1,310
+  4) cat docs/ops/hbp-agent.md → 파일 해시가 바뀌면 재기동, 재기동 때 커넥션 풀 두 배 겹침, 다른 파일은 안 봄
+  5) grep -n pool_size releases/*.rel → 서버당 풀 16~40(전 서버 동시 재기동 시 커넥션 급증 규모 감)
+  → 결론: app.conf를 다시 쓰면 그 서버가 재기동하고 커넥션이 겹쳐 pay-db 요금 구간이 오른다 → 값이 같은 서버 파일은 바이트 그대로, 릴리스 표시는 파일 밖에서.
+결정 유형: 성능·비용 트레이드오프(배포 표시의 일관성 ↔ DB 커넥션 구간 요금)

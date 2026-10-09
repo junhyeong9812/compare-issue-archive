@@ -1,0 +1,49 @@
+diff -ruN a10/src/api/PointsApi.java naive10/src/api/PointsApi.java
+--- a10/src/api/PointsApi.java	2026-10-10 00:16:47.056770964 +0900
++++ naive10/src/api/PointsApi.java	2026-10-10 00:16:47.107118966 +0900
+@@ -1,6 +1,8 @@
+ package api;
+ 
+ import config.AppConfig;
++import domain.EarnEntry;
++import domain.Member;
+ import domain.MemberStatement;
+ import domain.Payment;
+ import domain.RunResult;
+@@ -24,6 +26,10 @@
+     private final EarnBatchJob earnJob;
+     private final StatementService statements;
+     private final TopEarnersReport topEarners;
++    private final MemberDirectory members;
++    private final PtsctlClient pts;
++    private final EarnLedger ledger;
++    private final String refPrefix;
+ 
+     public PointsApi(AppConfig cfg) {
+         this.dataDir = cfg.dataDir();
+@@ -33,6 +39,10 @@
+         this.earnJob = new EarnBatchJob(members, new EarnPolicy(cfg.capPerPayment()), ledger, pts, cfg.refPrefix());
+         this.statements = new StatementService(members, ledger, pts);
+         this.topEarners = new TopEarnersReport(members, ledger);
++        this.members = members;
++        this.pts = pts;
++        this.ledger = ledger;
++        this.refPrefix = cfg.refPrefix();
+     }
+ 
+     /** Runs the earn batch for one day's acquirer export (data.dir/payments-YYYY-MM-DD.csv). */
+@@ -56,4 +66,14 @@
+     public String topEarnersText(YearMonth month, int n) {
+         return ReportFormatter.topEarners(month, topEarners.top(month, n));
+     }
++
++    /** Customer-care compensation: credits points once per ticket; returns the vendor entry number. */
++    public String compensate(String memberNo, long points, String ticketNo) {
++        Member m = members.find(memberNo).orElseThrow(() -> new IllegalArgumentException("unknown member " + memberNo));
++        if (points <= 0) throw new IllegalArgumentException("points must be positive: " + points);
++        if (ledger.contains(ticketNo)) throw new IllegalStateException("ticket already compensated: " + ticketNo);
++        String entryNo = pts.earn(m.memberNo(), points, refPrefix + "-" + ticketNo);
++        ledger.record(new EarnEntry(ticketNo, m.memberNo(), points, LocalDate.now(), entryNo));
++        return entryNo;
++    }
+ }

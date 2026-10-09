@@ -1,0 +1,12 @@
+diff -ruN a05/hbonboard/config.py naive05/hbonboard/config.py
+--- a05/hbonboard/config.py	2026-10-10 00:14:42.464835358 +0900
++++ naive05/hbonboard/config.py	2026-10-10 00:14:42.507023501 +0900
+@@ -20,7 +20,7 @@
+     idchk_batch_lines: int = 12
+     # sign-up form rules (member app screen spec v5)
+     name_max_chars: int = 20
+-    adult_age: int = 19
++    adult_age: int = 14
+     channels: tuple = ("app", "web", "partner")
+     # admin report
+     report_cache_ttl: float = 30.0

@@ -1,0 +1,41 @@
+diff -ruN a/hbstock/services/sync.py b/hbstock/services/sync.py
+--- a/hbstock/services/sync.py	2026-10-10 00:19:01.471251506 +0900
++++ b/hbstock/services/sync.py	2026-10-10 00:19:01.474087552 +0900
+@@ -9,18 +9,20 @@
+         self.settings = settings
+         self.on_synced = on_synced
+         self.last_sent = {}
++        # products that went back on sale since the last full sync (one market day)
++        self.reopened = set()
+ 
+     def run(self, full=False):
+         skus = [p.sku for p in self.repo.products()] if full else self.repo.take_dirty()
+         if full:
+             self.repo.take_dirty()
++            self.reopened.clear()
+         products = [self.repo.product(sku) for sku in skus]
+         lines, sent = build_feed(products, self.settings)
+         # nothing to tell the market about a product whose announced quantity did not move
+         changed = [line for line, sku in zip(lines, sent) if full or self.last_sent.get(sku) != sent[sku]]
+-        if not full:
+-            # TODO: still needed? a product we took off sale only comes back with the 06:00 full sync
+-            changed = [line for line in changed if not self._back_on_sale(line, sent)]
++        # a product may go back on sale at most once per market day; later comebacks wait for the full sync
++        changed = [line for line in changed if not self._held_back(line, sent, full)]
+         if not changed:
+             return {"transfer": None, "lines": 0, "skus": []}
+         transfer = self.client.push(changed)
+@@ -31,6 +33,11 @@
+             self.on_synced()
+         return {"transfer": transfer.transfer_id, "lines": transfer.lines, "skus": pushed}
+ 
+-    def _back_on_sale(self, line, sent):
++    def _held_back(self, line, sent, full):
+         sku = line.split("\t", 1)[0]
+-        return self.last_sent.get(sku) == 0 and sent[sku] > 0
++        if not (self.last_sent.get(sku) == 0 and sent[sku] > 0):
++            return False
++        if not full and sku in self.reopened:
++            return True
++        self.reopened.add(sku)
++        return False

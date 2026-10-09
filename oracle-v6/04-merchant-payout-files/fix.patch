@@ -1,0 +1,46 @@
+diff -ruN a/lib/receipts.sh b/lib/receipts.sh
+--- a/lib/receipts.sh	2026-10-10 00:18:03.673332875 +0900
++++ b/lib/receipts.sh	2026-10-10 00:18:03.676576381 +0900
+@@ -15,10 +15,9 @@
+   done
+ }
+ 
+-# receipts_day ROWS DATE -> "<count> <net>" for the day.
++# receipts_day ROWS DATE -> "<count> <net> <parts here> <parts>" for the day.
+ # A split day is totalled only once parts 1..n are all in the box; until then
+-# the answer is "0 0", the same as a day with no file at all.
+-# TODO: 일부 파트만 온 날도 온 만큼은 세어 주면 되지 않나? 지금은 '-'라 헷갈린다.
++# count and net are 0 and only the parts that did arrive are described.
+ receipts_day() {
+   printf '%s\n' "$1" | awk -F'\t' -v d="$2" '
+     $1 == "P" && $2 == d { seen[$3 + 0] = 1; want = $4 + 0 }
+@@ -26,19 +25,24 @@
+     END {
+       have = 0
+       for (p in seen) if (p >= 1 && p <= want) have++
+-      if (want == 0 || have < want) { print "0 0"; exit }
+-      print n + 0, s + 0
++      if (want == 0 || have < want) { print 0, 0, have, want, n + 0, s + 0; exit }
++      print n + 0, s + 0, have, want, 0, 0
+     }'
+ }
+ 
+ # receipts_report PARTNER FROM TO
++# A day with only some of its parts shows "-" in the count and net columns
++# (the partner cannot load it yet) and, after them, what did arrive.
+ receipts_report() {
+-  local partner=$1 from=$2 to=$3 rows d cnt net
++  local partner=$1 from=$2 to=$3 rows d cnt net have want pcnt pnet
+   rows=$(receipts_rows "$partner")
+   printf '# partner %s  %s..%s\n' "$partner" "$(date_dash "$from")" "$(date_dash "$to")"
+   for d in $(date_range "$from" "$to"); do
+-    read -r cnt net <<< "$(receipts_day "$rows" "$d")"
+-    if [ "$cnt" -eq 0 ]; then
++    read -r cnt net have want pcnt pnet <<< "$(receipts_day "$rows" "$d")"
++    if [ "$have" -gt 0 ] && [ "$have" -lt "$want" ]; then
++      printf '%s  %4s  %15s  partial %d/%d: %d rows, net %s\n' "$(date_dash "$d")" "-" "-" \
++        "$have" "$want" "$pcnt" "$(money_fmt "$pnet")"
++    elif [ "$cnt" -eq 0 ]; then
+       printf '%s  %4s  %15s\n' "$(date_dash "$d")" "-" "-"
+     else
+       printf '%s  %4d  %15s\n' "$(date_dash "$d")" "$cnt" "$(money_fmt "$net")"

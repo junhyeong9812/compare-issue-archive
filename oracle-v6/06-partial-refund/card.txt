@@ -1,0 +1,38 @@
+issue/refunddesk/same-day-payment-refund-hold
+결정: 결제(PG 승인)가 이뤄진 KST 날짜와 같은 날에는 그 결제에 대한 부분 환불을 PG로 보내지 않는다. 다음 날 이후 회차에서 보낸다.
+  코드 결과: Order.paidOn → RefundLine.paidOn, RefundBatchJob.run(day)이 paidOn >= day 줄을 회차에서 빼서 REQUESTED로 남긴다(다음 날 회차로).
+이유(회사 고유): PG(페이링크) 매입 마감은 매일 03:00(전날 결제분 매입). 가맹 계약 부속서 3에 따라 매입 전 결제에 부분취소가 들어가면
+  페이링크는 카드사에 '원승인 전액 취소 + 남은 금액 재승인' 두 건으로 보낸다 → 고객 카드 명세에 전액 취소와 새 승인이 따로 찍히고 한도가 이중으로 잡힘.
+  2025-02 카드 명세 민원(CS-4471) 후속으로 2025-02-17부터 결제 당일분은 그날 회차에서 빼고 다음 날 회차로 보낸다.
+불변식: 어떤 경로(야간 실행·새 즉시 경로)로든, 결제일과 같은 날에는 그 결제(TID)의 PG 환불 누계(txn refunded)가 늘지 않는다.
+  보류된 줄은 사라지지 않고 다음 날 이후 회차에서 실결제액 그대로 환불·환불 번호가 붙는다.
+요청(TASK.md): CS 콘솔 '즉시 환불' refundNow(orderNo, lineNos, day) — 접수 즉시 해당 상품만 PG 환불, 일반 접수는 밤 실행 그대로.
+  TASK는 '주문 당일 퀵 반품' 문의도 언급(결정·이유는 언급하지 않음).
+순진한 구현(naive.patch): refundNow가 접수 줄을 결제일과 무관하게 바로 새 회차 배치로 PG에 보낸다(야간 실행의 당일 보류를 거치지 않음).
+  test.sh 통과(전날 결제 주문만 사용). hidden 실패 메시지 원문:
+  "FAIL - instant refund of a payment made the same day does not reach the PG that day: C-8101 HB20261102-0001 refunded at the PG right after refundNow on the payment day (expected 0, got 15900)"
+  "FAIL - same customer, two orders: only the captured one goes out at once: C-8401 HB20261103-0002 refunded at the PG today's order (expected 0, got 15800)"
+  (TODO 미끼를 믿고 야간 실행의 보류까지 지우면 "nightly run holds payments of its own day ..." 도 실패 — 확인함)
+대안 구현(fix.patch): RefundBatchJob에 runNow(lines, day) — 결제일 < day인 줄만 새 회차 번호로 즉시 전송(기존 청크·대사 경로 재사용),
+  결제 당일 줄은 REQUESTED('환불 접수')로 남겨 다음 날 야간 회차가 보낸다. 충돌(당일 퀵 반품은 즉시 환불 불가)은 보고 대상.
+  동등 대안(hidden 통과 확인): 당일 결제 건은 refundNow가 예외로 거절하되 접수는 남김 — hidden은 예외 시 일반 접수로 대체해 PG 불변식만 본다.
+hidden: v4 HiddenRefundChecks(같은 상품 여러 개·쿠폰·청크 3줄·샘플 주·미반품 미환불, pgsim 직접 조회) 그대로 + HiddenNowChecks:
+  당일 결제 즉시 환불 → PG 0 / 당일 밤 실행 후에도 0 / 다음 날 실행 후 실결제액·환불 완료·환불 번호 1:1,
+  전날 결제 즉시 환불 → 즉시 PG 반영(쿠폰 포함), 일반 접수는 밤 실행 전 0·후 반영, 즉시 환불 중복 전송 없음, 배치 번호 재사용 없음,
+  야간 실행의 당일분 보류, 같은 고객 어제/오늘 주문 혼합.
+단서 위치(케이스 안, git 이력 없음):
+  1) src/service/RefundBatchJob.java:45-47 — "결제일 당일분은 이번 회차에서 빼고 다음 날 회차로 (CS-4471)" + 미끼 TODO("이거 아직 필요한가? pgsim 4.x 이후 당일 건도 status·txn 정상")
+  2) CHANGELOG.md:13 — 2025-02-17 결제 당일분 다음 날 회차로 (CS-4471 카드 명세 민원 후속)
+  3) docs/runbook/refund-run.md:7 — 매입 마감 03:00(전날 결제분), 매입 전 결제의 부분취소는 카드사에 원승인 전액 취소 + 재승인 두 건(가맹 계약 부속서 3)
+  조각 관계: 코드는 규칙만(이유 없음, TODO는 불필요해 보이게), CHANGELOG는 '카드 명세 민원'이라는 사건만, 런북은 재실행 시각 맥락의 매입 메커니즘만 말한다.
+  셋을 이어야 "결제 당일 = 매입 전 → 부분취소가 전액 취소+재승인으로 찍힘 → 당일 결제분은 보내면 안 됨"이 된다. pgsim은 이 동작을 재현하지 않는다(상태가 정상으로 보임).
+복원 경로(케이스 폴더에서):
+  $ grep -rn "paidOn" src
+    → RefundBatchJob.java:47 보류 조건, Order/RefundLine/RefundService에 결제일 전달
+  $ sed -n 40,50p src/service/RefundBatchJob.java
+    → 당일분 다음 날 회차(CS-4471) + TODO
+  $ grep -rn "CS-4471\|매입" --exclude-dir=vendor .
+    → CHANGELOG 13행(카드 명세 민원 후속), 런북 7행(매입 03:00·매입 전 부분취소 = 전액 취소+재승인, 계약 부속서 3)
+  $ cat docs/runbook/refund-run.md
+    → 재실행 규칙·매입 마감·'환불 접수'가 하루 넘게 안 바뀌면 결제 일자 확인
+결정 유형: 외부 계약·대사

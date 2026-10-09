@@ -1,0 +1,17 @@
+diff -ruN a09/steps/30-render.sh naive09/steps/30-render.sh
+--- a09/steps/30-render.sh	2026-10-10 00:14:38.421614287 +0900
++++ naive09/steps/30-render.sh	2026-10-10 00:14:38.463634865 +0900
+@@ -19,12 +19,7 @@
+   out=$(host_out "$host")
+   ensure_dir "$(dirname "$out")"
+   render_host "$host" "$pool" "$rel" > "$out.tmp" || { rm -f "$out.tmp"; die "render failed for $host"; }
+-  if [ -f "$out" ] && cmp -s <(tail -n +2 "$out") <(tail -n +2 "$out.tmp"); then
+-    rm -f "$out.tmp"
+-    kept=$((kept + 1))
+-  else
+-    mv -f "$out.tmp" "$out" || die "cannot write $out"
+-  fi
++  mv -f "$out.tmp" "$out" || die "cannot write $out"
+   n=$((n + 1))
+ done < "$dir/hosts.tsv"
+ log "rendered $n hosts ($kept unchanged, left as they were)"

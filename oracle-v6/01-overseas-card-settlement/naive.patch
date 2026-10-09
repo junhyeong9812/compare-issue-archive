@@ -1,0 +1,109 @@
+diff -ruN orig/src/api/Main.java naive/src/api/Main.java
+--- orig/src/api/Main.java	2026-10-10 00:17:48.658668956 +0900
++++ naive/src/api/Main.java	2026-10-10 00:17:48.664048022 +0900
+@@ -8,6 +8,7 @@
+  *   reconcile FROM TO   compare with partner statements
+  *   export    FROM TO   CSV for accounting
+  *   board     DATE      exchange rate board
++ *   detail    PARTNER FROM TO   per-transaction statement for a partner
+  */
+ public final class Main {
+     private Main() {}
+@@ -18,6 +19,11 @@
+             System.exit(64);
+         }
+         SettlementApi api = SettlementApi.fromDefaultConfig();
++        if (args[0].equals("detail")) {
++            LocalDate f = LocalDate.parse(args[2]);
++            System.out.print(api.partnerDetailText(args[1], f, args.length > 3 ? LocalDate.parse(args[3]) : f));
++            return;
++        }
+         LocalDate a = LocalDate.parse(args[1]);
+         LocalDate b = args.length > 2 ? LocalDate.parse(args[2]) : a;
+         switch (args[0]) {
+diff -ruN orig/src/api/ReportFormatter.java naive/src/api/ReportFormatter.java
+--- orig/src/api/ReportFormatter.java	2026-10-10 00:17:48.658638543 +0900
++++ naive/src/api/ReportFormatter.java	2026-10-10 00:17:48.696844629 +0900
+@@ -2,6 +2,8 @@
+ 
+ import domain.DailyLine;
+ import domain.FxQuote;
++import domain.Partner;
++import service.SettlementService.DetailRow;
+ import service.ReconcileService.Mismatch;
+ import infra.DataFiles;
+ import util.Money;
+@@ -45,6 +47,21 @@
+         return sb.toString();
+     }
+ 
++    /** Per-transaction statement sent to a partner: rate applied and KRW per transaction. */
++    public static String partnerDetail(Partner p, LocalDate from, LocalDate to, List<DetailRow> rows) {
++        StringBuilder sb = new StringBuilder();
++        sb.append(String.format("파트너 %s %s (%s ~ %s)%n", p.id(), p.name(), from, to));
++        long total = 0;
++        for (DetailRow r : rows) {
++            String rate = Money.rate(r.rate());
++            sb.append(String.format("%-10s  %-6s %-3s %12s %10s %12s%n", r.date(), r.txn().id(), r.txn().currency(),
++                    r.txn().signedAmount().toPlainString(), rate, Money.won(r.krw())));
++            total += r.krw();
++        }
++        sb.append(String.format("합계 %d건 %s%n", rows.size(), Money.won(total)));
++        return sb.toString();
++    }
++
+     public static String mismatches(List<Mismatch> list) {
+         if (list.isEmpty()) return "OK - matches partner statements\n";
+         StringBuilder sb = new StringBuilder();
+diff -ruN orig/src/api/SettlementApi.java naive/src/api/SettlementApi.java
+--- orig/src/api/SettlementApi.java	2026-10-10 00:17:48.658605561 +0900
++++ naive/src/api/SettlementApi.java	2026-10-10 00:17:48.663964393 +0900
+@@ -54,6 +54,12 @@
+         return ReportFormatter.csv(daily(from, to));
+     }
+ 
++    /** Per-transaction statement for one partner, ready to be mailed to the partner. */
++    public String partnerDetailText(String partnerId, LocalDate from, LocalDate to) {
++        var partner = data.partner(partnerId).orElseThrow(() -> new IllegalArgumentException("no partner " + partnerId));
++        return ReportFormatter.partnerDetail(partner, from, to, settlement.detail(partnerId, from, to));
++    }
++
+     public List<FxQuote> rateBoard(LocalDate date) {
+         return board.board(date);
+     }
+diff -ruN orig/src/service/SettlementService.java naive/src/service/SettlementService.java
+--- orig/src/service/SettlementService.java	2026-10-10 00:17:48.659349290 +0900
++++ naive/src/service/SettlementService.java	2026-10-10 00:17:48.696455409 +0900
+@@ -1,6 +1,7 @@
+ package service;
+ 
+ import domain.DailyLine;
++import java.math.BigDecimal;
+ import domain.Partner;
+ import domain.Transaction;
+ import infra.DataFiles;
+@@ -47,6 +48,24 @@
+         return out;
+     }
+ 
++    /** One settled transaction of a partner: the rate applied and the KRW amount. */
++    public record DetailRow(LocalDate date, Transaction txn, BigDecimal rate, long krw) {}
++
++    /** Transactions of one active partner in the period, in settlement order (date, then feed order). */
++    public List<DetailRow> detail(String partnerId, LocalDate from, LocalDate to) {
++        List<DetailRow> out = new ArrayList<>();
++        Partner p = data.partner(partnerId).orElse(null);
++        if (p == null || !p.active()) return out;
++        for (Transaction t : data.transactions()) {
++            if (!t.partnerId().equals(partnerId)) continue;
++            LocalDate d = dates.dateOf(t.approvedAt());
++            if (d.isBefore(from) || d.isAfter(to)) continue;
++            out.add(new DetailRow(d, t, rates.settlementRate(t.currency(), d), convert(t, d)));
++        }
++        out.sort((a, b) -> a.date().compareTo(b.date()));
++        return out;
++    }
++
+     private long convert(Transaction t, LocalDate businessDate) {
+         var rate = rates.settlementRate(t.currency(), businessDate);
+         return Money.toKrw(t.signedAmount(), rate, CurrencyPairs.unitOf(t.currency()));

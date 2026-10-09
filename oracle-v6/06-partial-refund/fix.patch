@@ -1,0 +1,78 @@
+diff -ruN orig/src/api/RefundDeskApi.java fix/src/api/RefundDeskApi.java
+--- orig/src/api/RefundDeskApi.java	2026-10-10 00:20:42.715676729 +0900
++++ fix/src/api/RefundDeskApi.java	2026-10-10 00:20:42.750860409 +0900
+@@ -47,6 +47,16 @@
+         return refundService.request(orderNo, lineNos, day);
+     }
+ 
++    /**
++     * CS console "즉시 환불": accepts the request and sends it to the PG at once. Items of a payment made
++     * on {@code day} cannot go out the same day; they stay "환불 접수" and leave with the next nightly run.
++     */
++    public String refundNow(String orderNo, List<Integer> lineNos, LocalDate day) {
++        String id = refundService.request(orderNo, lineNos, day);
++        batchJob.runNow(refunds.byRequest(id), day);
++        return id;
++    }
++
+     public RunResult runRefunds(LocalDate day) {
+         return batchJob.run(day);
+     }
+diff -ruN orig/src/service/RefundBatchJob.java fix/src/service/RefundBatchJob.java
+--- orig/src/service/RefundBatchJob.java	2026-10-10 00:20:42.716301937 +0900
++++ fix/src/service/RefundBatchJob.java	2026-10-10 00:20:42.750535671 +0900
+@@ -38,8 +38,7 @@
+     }
+ 
+     public RunResult run(LocalDate day) {
+-        String runId = String.format("%s%s-%02d", prefix, day.format(DateTimeFormatter.BASIC_ISO_DATE),
+-                refunds.nextRunSeq());
++        String runId = nextRunId(day);
+         List<RefundLine> pending = new ArrayList<>();
+         for (RefundLine l : uniquePending()) {
+             // 결제일 당일분은 이번 회차에서 빼고 다음 날 회차로 (CS-4471)
+@@ -47,6 +46,30 @@
+             if (l.paidOn() != null && !l.paidOn().isBefore(day)) continue;
+             pending.add(l);
+         }
++        return send(runId, pending);
++    }
++
++    /**
++     * CS "즉시 환불": sends the given lines right away in a run of their own (same run/batch numbering).
++     * Lines whose payment was made on {@code day} are not sent; they stay queued for a later nightly run,
++     * exactly as the nightly run itself treats them.
++     */
++    public RunResult runNow(List<RefundLine> lines, LocalDate day) {
++        List<RefundLine> ready = new ArrayList<>();
++        for (RefundLine l : lines) {
++            if (l.status() != RefundLine.Status.REQUESTED) continue;
++            if (l.paidOn() != null && !l.paidOn().isBefore(day)) continue;
++            ready.add(l);
++        }
++        if (ready.isEmpty()) return new RunResult(null, List.of(), 0, 0, 0);
++        return send(nextRunId(day), ready);
++    }
++
++    private String nextRunId(LocalDate day) {
++        return String.format("%s%s-%02d", prefix, day.format(DateTimeFormatter.BASIC_ISO_DATE), refunds.nextRunSeq());
++    }
++
++    private RunResult send(String runId, List<RefundLine> pending) {
+         List<String> batchIds = new ArrayList<>();
+         int completed = 0;
+         for (int start = 0, chunk = 1; start < pending.size(); start += maxLines, chunk++) {
+diff -ruN orig/src/store/RefundRepository.java fix/src/store/RefundRepository.java
+--- orig/src/store/RefundRepository.java	2026-10-10 00:20:42.716424445 +0900
++++ fix/src/store/RefundRepository.java	2026-10-10 00:20:42.750751296 +0900
+@@ -30,6 +30,10 @@
+         return lines.stream().filter(l -> l.orderNo().equals(orderNo)).toList();
+     }
+ 
++    public synchronized List<RefundLine> byRequest(String requestId) {
++        return lines.stream().filter(l -> l.requestId().equals(requestId)).toList();
++    }
++
+     public synchronized List<RefundLine> all() {
+         return new ArrayList<>(lines);
+     }

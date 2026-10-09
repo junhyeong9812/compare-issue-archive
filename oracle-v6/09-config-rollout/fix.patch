@@ -1,0 +1,18 @@
+diff -ruN a09/bin/rollout fix09/bin/rollout
+--- a09/bin/rollout	2026-10-10 00:14:38.420640638 +0900
++++ fix09/bin/rollout	2026-10-10 00:14:38.463429829 +0900
+@@ -30,9 +30,13 @@
+ }
+ 
+ cmd_show() {
+-  local f
++  local f last
+   f=$(host_out "$1")
+   require_file "$f" "rendered config for $1"
++  # the file itself is left alone when a rollout does not change the host,
++  # so name the latest finished rollout from the history
++  last=$(tail -n 1 "$(history_file)" 2>/dev/null | cut -d'|' -f1)
++  [ -n "$last" ] && printf '# last rollout: %s\n' "$last"
+   cat "$f"
+ }
+ 

@@ -1,0 +1,13 @@
+diff -ruN a/src/service/resendPolicy.ts b/src/service/resendPolicy.ts
+--- a/src/service/resendPolicy.ts	2026-10-10 00:20:48.867896253 +0900
++++ b/src/service/resendPolicy.ts	2026-10-10 00:20:48.872141413 +0900
+@@ -4,7 +4,8 @@
+  * 그 밖의 실패는 회차 리포트의 '실패'로만 남는다.
+  */
+ const RESEND_ON: ReadonlySet<string> = new Set<string>([
+-  // TODO: 1.9.0부터 비어 있음. 재발송 기능째 걷어낼지, 아직 필요한지 확인 필요
++  "E-THROTTLE", // 대행사가 받지 않은 요청 — 다시 보내도 한 통
++  // E-CARRIER는 넣지 않는다: 대행사 쪽에서 다시 보내므로 우리가 또 보내면 두 통이 된다
+ ]);
+ 
+ export function shouldResend(reason: string): boolean {

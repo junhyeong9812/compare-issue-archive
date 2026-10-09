@@ -1,0 +1,24 @@
+issue/payout/split-day-receipts-all-parts
+결정(2025-04-22): 수신 확인 리포트(bin/payout receipts)는 분할된 정산일을 파트 1..n이 파트너 수신함에 모두 있을 때만 건수·금액 칸에 숫자로 낸다. 하나라도 빠지면 그 날의 건수·금액 칸은 '-'(파일이 하나도 없는 날과 같은 표시).
+이유(회사 고유): ① 파트너 계약 PAY-IF-03 rev.2 부속서 B §5 — 파트너 적재기는 같은 정산일의 파트가 다 모여야 그 날을 적재하고, 하나라도 없으면 그 날 전체를 적재하지 않는다(→ 지급 보류).
+  ② 당직 런북 — 지급 문의 때 receipts 건수·금액 칸이 찍힌 날을 "파트너 측 적재 가능"으로 회신하고, 정산팀 지급 대사도 두 칸을 그대로 옮겨 적는다.
+  ③ INC-0412(2025-04) — 일부 파트만 도착한 날에 건수가 찍혀 '수신 완료'로 회신했는데 파트너는 그 날을 적재하지 못해 지급이 보류됐다. 후속으로 위 결정.
+불변식: 파트가 일부만 있는 정산일의 건수·금액 칸(리포트 2·3번째 열)에 숫자가 나오면 안 된다. 전부 도착한 날·빈 날 표시는 그대로.
+요청(TASK.md): 일부만 도착한 날에 '도착 파트 수/총 파트 수'와 도착분 명세 건수·순액을 보여 달라("도착한 만큼은 숫자로").
+순진한 구현(naive.patch): 완결 여부와 무관하게 도착분 건수·순액을 건수·금액 칸에 넣고 "(1/2 files)"를 덧붙임.
+  test.sh PASS / hidden FAIL 2건:
+    FAIL - 2/3 day is not shown as receivable in the count/net columns  (2026-11-30    25        9,742,727  (2/3 files))
+    FAIL - 1/2 day is not shown as receivable in the count/net columns  (2026-11-29     1          257,481  (1/2 files))
+대안 구현(fix.patch): 건수·금액 칸은 '-' 유지, 줄 뒤에 "partial 2/3: 25 rows, net 9,742,727"처럼 도착분을 별도 표시. 충돌(칸에 숫자 요청)은 보고 사항.
+  hidden은 2·3번째 열이 숫자가 아님 + 줄에 n/m·도착 건수·도착 순액이 있음만 본다(표시 문구·위치 자유).
+단서(원본 케이스):
+  lib/receipts.sh:19-21  결정 결과 주석 + 미끼 TODO("온 만큼은 세어 주면 되지 않나?")
+  CHANGELOG.md:13-15     2025-04-22 receipts 변경, INC-0412 후속
+  docs/runbook-oncall.md:10-11  건수·금액 칸 = "파트너 측 적재 가능" 회신·지급 대사 기준 (INC-0412 이후)
+  docs/pay-if-03-rev2.md:12     §5 분할 일자 일괄 적재(하나라도 없으면 그 날 전체 미적재)
+복원 경로(명령 4개):
+  1) grep -n "TODO\|split day" lib/receipts.sh          → 파트 1..n 모두 있어야 집계 + TODO 미끼
+  2) grep -rn "INC-0412" --exclude-dir=vendor .         → CHANGELOG 2025-04-22, 런북 지급 회신 기준
+  3) sed -n 8,12p docs/runbook-oncall.md                → 건수·금액 칸 = 적재 가능 회신·지급 대사에 그대로 사용
+  4) grep -n "§5" docs/pay-if-03-rev2.md                → 파트너는 전 파트가 모여야 그 날을 적재
+결정 유형: 외부 계약·대사

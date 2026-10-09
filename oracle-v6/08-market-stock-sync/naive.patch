@@ -1,0 +1,21 @@
+diff -ruN a/hbstock/services/sync.py b/hbstock/services/sync.py
+--- a/hbstock/services/sync.py	2026-10-10 00:19:01.490672047 +0900
++++ b/hbstock/services/sync.py	2026-10-10 00:19:01.494074628 +0900
+@@ -18,9 +18,6 @@
+         lines, sent = build_feed(products, self.settings)
+         # nothing to tell the market about a product whose announced quantity did not move
+         changed = [line for line, sku in zip(lines, sent) if full or self.last_sent.get(sku) != sent[sku]]
+-        if not full:
+-            # TODO: still needed? a product we took off sale only comes back with the 06:00 full sync
+-            changed = [line for line in changed if not self._back_on_sale(line, sent)]
+         if not changed:
+             return {"transfer": None, "lines": 0, "skus": []}
+         transfer = self.client.push(changed)
+@@ -30,7 +27,3 @@
+         if self.on_synced:
+             self.on_synced()
+         return {"transfer": transfer.transfer_id, "lines": transfer.lines, "skus": pushed}
+-
+-    def _back_on_sale(self, line, sent):
+-        sku = line.split("\t", 1)[0]
+-        return self.last_sent.get(sku) == 0 and sent[sku] > 0

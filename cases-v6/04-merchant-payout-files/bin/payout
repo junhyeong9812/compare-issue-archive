@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# payout — merchant settlement files for card-acquiring partners.
+#
+#   payout run DATE                  extract → build → ship
+#   payout manifest DATE             files handed to the transfer CLI that day
+#   payout receipts PARTNER FROM TO  what the partner can download, per day
+#   payout partners                  active partner codes
+#
+# DATE is YYYYMMDD. Configuration: conf/payout.conf (PAYOUT_* overrides).
+set -u
+export LC_ALL=C.UTF-8
+PAYOUT_HOME=$(cd "$(dirname "$0")/.." && pwd)
+export PAYOUT_HOME
+. "$PAYOUT_HOME/steps/_env.sh"
+
+usage() { sed -n '3,9p' "$0" | sed 's/^# \{0,1\}//'; }
+
+cmd_run() {
+  local date=$1 step rc
+  for step in "$PAYOUT_HOME"/steps/[0-9][0-9]-*.sh; do
+    bash "$step" "$date"
+    rc=$?
+    if [ "$rc" -ne 0 ]; then
+      warn "step $(basename "$step") failed (exit $rc)"
+      return "$rc"
+    fi
+  done
+  log "run $date complete"
+}
+
+cmd_manifest() {
+  local date=$1 p name ticket rows
+  printf '# %s\n' "$(date_dash "$date")"
+  manifest_show "$date" | while IFS='|' read -r _ p name ticket rows; do
+    printf '%-5s %-40s %s %4s\n' "$p" "$name" "$ticket" "$rows"
+  done
+}
+
+[ $# -ge 1 ] || { usage; exit 64; }
+cmd=$1; shift
+case "$cmd" in
+  run)      [ $# -eq 1 ] || { usage; exit 64; }; cmd_run "$(check_date "$1")" ;;
+  manifest) [ $# -eq 1 ] || { usage; exit 64; }; cmd_manifest "$(check_date "$1")" ;;
+  receipts) [ $# -eq 3 ] || { usage; exit 64; }
+            receipts_report "$1" "$(check_date "$2")" "$(check_date "$3")" ;;
+  partners) active_partners ;;
+  -h|--help|help) usage ;;
+  *) usage; exit 64 ;;
+esac

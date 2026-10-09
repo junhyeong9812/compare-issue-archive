@@ -1,0 +1,24 @@
+diff -ruN a/src/service/reminderService.ts b/src/service/reminderService.ts
+--- a/src/service/reminderService.ts	2026-10-10 00:17:08.529943096 +0900
++++ b/src/service/reminderService.ts	2026-10-10 00:17:08.533413890 +0900
+@@ -51,10 +51,18 @@
+     const a = this.autopays.find(autopayId);
+     if (!a) throw new Error(`autopay ${autopayId} not found`);
+     const f = validateFailure(autopayId, body);
++    // 재출금이 아직 실행되기 전에 들어온 실패 통보는 같은 실패를 다시 보낸 것이다 — 안내를 새로 잡지 않는다.
++    const pending = this.reminders
++      .byAutopay(autopayId)
++      .filter((x) => x.kind === "RETRY" && compare(x.dueAt, f.failedAt) > 0);
++    if (pending.length > 0) return { retryAt: pending[0].dueAt };
+     this.autopays.addFailure(f);
+     const retryAt = addMinutes(f.failedAt, this.retryDelayMinutes);
+-    const r = this.planner.retryNotice(a, retryAt);
+-    if (!r || this.reminders.has(r.key)) return { retryAt };
++    let r = this.planner.retryNotice(a, retryAt);
++    if (!r) return { retryAt };
++    // 재출금이 다시 실패해 새 재출금이 잡힌 경우 — 같은 날이면 회차를 붙여 따로 예약한다.
++    const sameDay = this.reminders.byAutopay(autopayId).filter((x) => x.kind === "RETRY" && x.planDate === r!.planDate);
++    if (sameDay.length > 0) r = { ...r, key: `${r.key}.${sameDay.length + 1}` };
+     this.schedule(r);
+     return { retryAt, notice: { key: r.key, sendAt: r.sendAt } };
+   }

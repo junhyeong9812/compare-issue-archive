@@ -1,0 +1,25 @@
+issue/pointsvc/manual-points-and-ranking
+결정(2025-04): 고객센터 보상·수기 조정 포인트는 결제 적립과 섞지 않는다. (1) 벤더 참조 `E-`는 결제 적립 전용(E-<결제ID>), 보상·조정은 `A-<상담 티켓>`. (2) 마케팅 '이달 적립 상위'(경품 근거)는 적립 배치가 보낸 결제 적립 기록만으로 집계하고 벤더 잔액·보상분을 넣지 않는다.
+이유(회사 고유):
+  - 월말 포인트 충당부채 대사: 회계법인 제출 자료가 벤더 이력의 E- 행을 매입사 결제(승인)와 결제 ID로 1:1 맞춘다. 짝 없는 E- 행은 '근거 없는 적립'으로 건별 소명 — 2025 기말감사에서 37건 소명·추가 표본 요청.
+  - AUD-25-07(2025-02 경품 이벤트): 상위 리포트가 벤더 잔액 기준이었는데, 상담원이 지인 계정에 보상 포인트를 몰아 상위 3명 중 2명이 상품권 수령. 감사실 후속으로 2025-04 리포트를 결제 적립 기록 기준으로 변경, 경품 전 감사실이 A- 행을 따로 확인.
+불변식: (a) 벤더의 모든 E- 참조는 그 회원의 실제 승인 결제 ID와 1:1. (b) 보상 지급은 '이달 적립 상위' 결과를 바꾸지 않는다. 보상은 회원 잔액·적립 건수에는 보인다.
+요청(TASK): PointsApi.compensate(memberNo, points, ticketNo) — 보상 포인트 지급, 앱 잔액·건수 즉시 반영, 티켓당 1회, 없는 회원·0 이하 거절.
+순진한 구현(naive.patch): 적립 경로 재사용 — pts.earn(member, points, refPrefix + "-" + ticket) = `E-CS-…`, EarnLedger에 티켓을 결제처럼 기록(중복 방지용). test.sh 통과.
+  hidden 실패 지점(HiddenCompensationChecks):
+   - "E- references with no matching approved payment of that member (expected [], got [4512 E-CS-20261103-0002, 0000417 E-CS-20261103-0001, 010 E-CS-20261103-0004, C0012 E-CS-20261103-0003])"
+   - "top earners list after compensation" — 보상이 상위 리포트 순위·금액을 바꿈
+대안 구현(fix.patch): 보상은 `A-<티켓>` 참조로 벤더에 적립하고 적립 기록(EarnLedger)에는 넣지 않는다. 티켓 중복은 벤더의 참조 1회 규칙(E19)이 거절.
+  hidden은 접두어를 A로 고정하지 않는다: E-로 시작하지 않고 순위만 안 바꾸면 통과.
+단서 위치(원본 케이스):
+  src/service/TopEarnersReport.java:14-18  "from what the earn run sent ... (our own earn ledger), not from the vendor balance" + 미끼 TODO "do we still need our own count here?"
+  conf/app.properties:7  "vendor reference of a payment earn: <refPrefix>-<payment id>"
+  CHANGELOG.md:7  2025-04 상위 집계 기준 벤더 잔액 → 적립 기록, AUD-25-07(2월 경품 이벤트 상위권 건) 후속 / CHANGELOG.md:16 E-<결제ID> 통일(월말 마감 런북 참조)
+  docs/ops/points-month-end.md:6-10  2번 E- ↔ 매입사 결제 1:1 대사·짝 없으면 회계법인 소명(37건) / 3번 보상·수기 조정 = A-<상담 티켓> / 4번 경품 전 감사실이 상위권의 A- 행 확인
+복원 경로(원본에서 실행·확인함):
+  1) grep -rn "refPrefix" conf src            → E 접두어, "<refPrefix>-<payment id>" = 결제 적립 참조
+  2) sed -n 14,20p src/service/TopEarnersReport.java → 상위 리포트는 벤더 잔액이 아니라 자체 적립 기록, 미끼 TODO
+  3) grep -rn "AUD-25-07\|E-<" --include=*.md . → CHANGELOG 2건(리포트 기준 변경 = 경품 이벤트 감사 후속, E- 형식 = 월말 런북), README, 런북 4번
+  4) sed -n 6,14p docs/ops/points-month-end.md  → E- 대사·소명, 보상은 A-, 경품 감사
+  결론: 보상을 E- 참조로 넣으면 대사 소명 대상, 적립 기록에 넣으면 경품 순위 오염 → 별도 참조·기록 밖.
+결정 유형: 감사·규제

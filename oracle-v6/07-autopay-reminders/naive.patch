@@ -1,0 +1,18 @@
+diff -ruN a/src/service/reminderService.ts b/src/service/reminderService.ts
+--- a/src/service/reminderService.ts	2026-10-10 00:17:08.550333558 +0900
++++ b/src/service/reminderService.ts	2026-10-10 00:17:08.553895883 +0900
+@@ -53,8 +53,12 @@
+     const f = validateFailure(autopayId, body);
+     this.autopays.addFailure(f);
+     const retryAt = addMinutes(f.failedAt, this.retryDelayMinutes);
+-    const r = this.planner.retryNotice(a, retryAt);
+-    if (!r || this.reminders.has(r.key)) return { retryAt };
++    let r = this.planner.retryNotice(a, retryAt);
++    if (!r) return { retryAt };
++    // 같은 날 재출금이 다시 잡히면(2차·3차 재출금) 회차를 붙여 따로 예약한다.
++    const sameDay = this.reminders.byAutopay(autopayId).filter((x) => x.kind === "RETRY" && x.planDate === r!.planDate);
++    if (sameDay.some((x) => x.dueAt === retryAt)) return { retryAt };
++    if (sameDay.length > 0) r = { ...r, key: `${r.key}.${sameDay.length + 1}` };
+     this.schedule(r);
+     return { retryAt, notice: { key: r.key, sendAt: r.sendAt } };
+   }

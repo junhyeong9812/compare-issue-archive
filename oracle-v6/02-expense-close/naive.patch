@@ -1,0 +1,53 @@
+diff -ruN a02/hbexpense/api/handlers.py naive02/hbexpense/api/handlers.py
+--- a02/hbexpense/api/handlers.py	2026-10-10 00:12:56.750023947 +0900
++++ naive02/hbexpense/api/handlers.py	2026-10-10 00:12:57.366510182 +0900
+@@ -1,9 +1,19 @@
+ """Endpoint handlers. Each takes (app, request, **path_params) and returns a Response."""
+ from hbexpense.api.http import Response, month_param, str_param
++from hbexpense.models import POSTED
+ from hbexpense.util.money import format_krw
+ from hbexpense.util.text import pad_display
+ 
+ 
++def _with_ledger_status(app, claim):
++    item = claim.to_dict()
++    item["ledger_status"] = None
++    if claim.status == POSTED and claim.receipt:
++        info = app.services["reports"].ledger.show(claim.receipt)
++        item["ledger_status"] = "booked" if info.get("st") == "1" else "not_booked"
++    return item
++
++
+ def submit_claim(app, request):
+     claim = app.services["claims"].submit(request.body or {})
+     return Response(201, claim.to_dict())
+@@ -18,7 +28,7 @@
+ 
+ 
+ def get_claim(app, request, claim_id):
+-    return Response.ok(app.repo.get(claim_id).to_dict())
++    return Response.ok(_with_ledger_status(app, app.repo.get(claim_id)))
+ 
+ 
+ def list_claims(app, request):
+@@ -26,7 +36,7 @@
+     claims = app.repo.all()
+     if status:
+         claims = [c for c in claims if c.status == status]
+-    return Response.ok({"items": [c.to_dict() for c in claims]})
++    return Response.ok({"items": [_with_ledger_status(app, c) for c in claims]})
+ 
+ 
+ def run_settlement(app, request):
+diff -ruN a02/hbexpense/config.py naive02/hbexpense/config.py
+--- a02/hbexpense/config.py	2026-10-10 00:12:56.751417057 +0900
++++ naive02/hbexpense/config.py	2026-10-10 00:12:57.366312134 +0900
+@@ -25,7 +25,7 @@
+     ledger_memo_bytes: int = 48
+     # per-entry lookups (`show`) stay with the finance reconciliation desk
+     # since EXP-412; the desk's own tooling turns this on
+-    ledger_show_allowed: bool = False
++    ledger_show_allowed: bool = True
+     # category -> ledger account code
+     accounts: dict = field(default_factory=lambda: {
+         "TRAVEL": "5110",

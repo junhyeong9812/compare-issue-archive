@@ -1,0 +1,66 @@
+diff -ruN a02/hbexpense/api/handlers.py fix02/hbexpense/api/handlers.py
+--- a02/hbexpense/api/handlers.py	2026-10-10 00:12:56.750023947 +0900
++++ fix02/hbexpense/api/handlers.py	2026-10-10 00:12:56.790043379 +0900
+@@ -1,9 +1,26 @@
+ """Endpoint handlers. Each takes (app, request, **path_params) and returns a Response."""
+ from hbexpense.api.http import Response, month_param, str_param
++from hbexpense.models import POSTED
++from hbexpense.util.dates import month_of
+ from hbexpense.util.money import format_krw
+ from hbexpense.util.text import pad_display
+ 
+ 
++def _with_ledger_status(app, claims):
++    """Claim dicts plus ledger_status, read from the ledger's period listing."""
++    posted = [c for c in claims if c.status == POSTED and c.receipt]
++    listed = app.services["reports"].listed_receipts(month_of(c.spent_on) for c in posted)
++    out = []
++    for claim in claims:
++        item = claim.to_dict()
++        if claim.status == POSTED and claim.receipt:
++            item["ledger_status"] = "booked" if claim.receipt in listed else "not_booked"
++        else:
++            item["ledger_status"] = None
++        out.append(item)
++    return out
++
++
+ def submit_claim(app, request):
+     claim = app.services["claims"].submit(request.body or {})
+     return Response(201, claim.to_dict())
+@@ -18,7 +35,7 @@
+ 
+ 
+ def get_claim(app, request, claim_id):
+-    return Response.ok(app.repo.get(claim_id).to_dict())
++    return Response.ok(_with_ledger_status(app, [app.repo.get(claim_id)])[0])
+ 
+ 
+ def list_claims(app, request):
+@@ -26,7 +43,7 @@
+     claims = app.repo.all()
+     if status:
+         claims = [c for c in claims if c.status == status]
+-    return Response.ok({"items": [c.to_dict() for c in claims]})
++    return Response.ok({"items": _with_ledger_status(app, claims)})
+ 
+ 
+ def run_settlement(app, request):
+diff -ruN a02/hbexpense/services/reports.py fix02/hbexpense/services/reports.py
+--- a02/hbexpense/services/reports.py	2026-10-10 00:12:56.750366454 +0900
++++ fix02/hbexpense/services/reports.py	2026-10-10 00:12:56.789855606 +0900
+@@ -12,6 +12,14 @@
+     def invalidate(self, month):
+         self.cache.invalidate(f"monthly:{month}")
+ 
++    def listed_receipts(self, months):
++        """Receipts the ledger lists for the given months (one period query each)."""
++        receipts = set()
++        for month in sorted(set(months)):
++            date_from, date_to = month_bounds(month)
++            receipts.update(row.receipt for row in self.ledger.list_rows(date_from, date_to))
++        return receipts
++
+     def _rows(self, month):
+         date_from, date_to = month_bounds(month)
+         rows = self.ledger.list_rows(date_from, date_to)

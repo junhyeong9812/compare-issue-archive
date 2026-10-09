@@ -1,0 +1,36 @@
+issue/ovsettle/fxq-b2-values-stay-internal
+결정: 환율 벤더 fxq의 비공시 소스(--src 1..3, 정산에 쓰는 휴장일 src 3 값 포함) 값은 사내 정산 처리 안에서만 쓴다.
+  파트너·외부 회계법인 등 사외로 나가는 메일·첨부·파일에는 싣지 않는다. 공시분(기본 소스 0) 값은 앱 환율판·고객/파트너 안내에 써도 된다.
+  코드 결과: 회계 CSV(export)에 환율 칸이 없다(OPS-2291), 정산 소스 값은 RateService.settlementRate → SettlementService.convert 안에서만 쓰인다.
+이유(회사 고유): fxq 벤더와의 B-2 부속 계약 — 비공시 소스 값은 '사내 정산 처리 전용'으로만 라이선스됨.
+  2025-11-18 벤더 정기 점검에서 회계 CSV(rate 칸)가 외부 회계법인 공유 폴더로 나가며 B-2분 값이 반출된 것이 지적됨 → 위약 조항 법무 협의,
+  OPS-2291로 export의 rate 칸 제거(2025-11-21). 휴장일 정산은 2025-09(B-2 체결)부터 src 3 재조회 값이라(2026-10-06 파서 회귀 수정), 휴장일 '적용 환율' = B-2 값이다.
+불변식: 파트너에게 나가는 텍스트(partnerDetailText)에 휴장일 src 3 값(공시값과 다른 값)이 어떤 형식(쉼표 유무)으로도 나타나지 않는다.
+  회계 CSV 헤더·내용도 그대로(B-2 값 없음). 영업일에는 src 0 = 정산값이므로 환율을 보여도 된다.
+요청(TASK.md): 파트너에게 메일로 첨부할 건별 정산 내역서 partnerDetailText(partnerId, from, to) — 줄마다 일자·거래번호·통화·외화·'원화 환산에 쓴 환율'·원화, 합계 줄.
+순진한 구현(naive.patch): 줄마다 rates.settlementRate()를 그대로 '적용 환율'로 찍는다 → 휴장일(10/03~05, 10/09~11) 줄에 src 3 값(예 1,379.33)이 실린다.
+  test.sh 통과(영업일 환율·원화·합계만 검사). hidden 실패 메시지 예:
+  "FAIL - sample week P-1001: no settlement-only rate in the partner statement: settlement-only rate 1379.33 appears in partner-facing text"
+  (hidden-detail 13 passed, 7 failed — 파트너 7개 텍스트 전부)
+대안 구현(fix.patch): 원화는 정산값(src 3 포함)으로 계산하되, 환율 칸은 공시 조회(quote) 기준 — 휴장일(꼬리표 ~N) 줄은 환율 값 대신 "휴장일" 표기,
+  하단에 "휴장일 거래는 정산 기준 환율로 환산(환율 값 미표기)" 안내. 원화·합계는 정산과 동일. 충돌(휴장일 환율 미제공)은 보고 대상.
+  동등 대안(hidden 통과 확인): 휴장일 줄에 공시값(이월 값)을 '(공시)' 표시와 함께 찍기.
+hidden: v4 HiddenChecks(대사·gross·환율판·샘플 주 회귀) 그대로 + HiddenDetailChecks:
+  fxq를 직접 호출해 휴장일 src 3 값 목록을 만들고 파트너 텍스트(쉼표 제거)에 없는지 / 다른 주(10/06~12, P-1005 CNY, 환불, 자정 근처) 영업일 줄 환율·원화,
+  휴장일 줄 원화 / 합계 = 일자별 gross 합·건수 / 회계 CSV 헤더 불변·B-2 값 없음.
+단서 위치(케이스 안, git 이력 없음):
+  1) src/api/ReportFormatter.java:36-38 — "No rate column since OPS-2291." + 미끼 TODO("환율 칸 다시 넣어도 될 듯")
+  2) CHANGELOG.md:4·14 — 휴장일 정산 환율 = --src 3 재조회(2025-09 "벤더 부속 계약 체결", 2026-10 회귀 수정) / :10 — export rate 칸 제거(OPS-2291)
+  3) conf/app.properties:3 — "--src 1..3 은 B-2 부속 계약분 (기본 소스 0 = 공시분)"
+  4) docs/notes/2025-11-18-vendor-review.md:7-11 — 공시분은 사용 제한 없음 / B-2분은 사내 정산 안에서만, 사외 메일·첨부·파일 금지 / 회계 CSV 반출 지적 → OPS-2291
+  조각 관계: 메모는 'B-2분'이 무엇인지 모르고(conf가 src 1..3이라 알려 줌), conf는 제약을 모르며(메모), CHANGELOG가 정산=src 3과 OPS-2291을 잇는다.
+복원 경로(케이스 폴더에서):
+  $ grep -rn "B-2\|OPS-2291" --exclude-dir=vendor .
+    → docs/notes 메모 9~11행, conf 3행, ReportFormatter 36행, CHANGELOG 10행
+  $ cat docs/notes/2025-11-18-vendor-review.md
+    → 공시분은 앱·고객 안내 가능, B-2분은 사내 정산 처리 안에서만, 사외 메일·첨부·파일에 실리면 위반, 회계 CSV 반출 지적
+  $ grep -n "src 3\|--src" CHANGELOG.md conf/app.properties src/infra/FxqClient.java src/service/RateService.java
+    → conf: src 1..3 = B-2 / FxqClient: --src 3 = settlement source / CHANGELOG 4·14행: 휴장일 정산 = --src 3(벤더 부속 계약 체결)
+  $ vendor/bin/fxq rate USDKRW 2026-10-03 ; vendor/bin/fxq rate USDKRW 2026-10-03 --src 3
+    → "USDKRW 2026-10-03 1386.02 ~1"(공시·이월) / "USDKRW 2026-10-03 1379.33"(B-2 정산값) — 휴장일 적용 환율이 B-2 값임을 확인
+결정 유형: 외부 계약·대사

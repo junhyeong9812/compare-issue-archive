@@ -1,0 +1,45 @@
+diff -ruN a10/src/api/PointsApi.java fix10/src/api/PointsApi.java
+--- a10/src/api/PointsApi.java	2026-10-10 00:16:47.056770964 +0900
++++ fix10/src/api/PointsApi.java	2026-10-10 00:16:47.107577111 +0900
+@@ -1,6 +1,7 @@
+ package api;
+ 
+ import config.AppConfig;
++import domain.Member;
+ import domain.MemberStatement;
+ import domain.Payment;
+ import domain.RunResult;
+@@ -24,6 +25,8 @@
+     private final EarnBatchJob earnJob;
+     private final StatementService statements;
+     private final TopEarnersReport topEarners;
++    private final MemberDirectory members;
++    private final PtsctlClient pts;
+ 
+     public PointsApi(AppConfig cfg) {
+         this.dataDir = cfg.dataDir();
+@@ -33,6 +36,8 @@
+         this.earnJob = new EarnBatchJob(members, new EarnPolicy(cfg.capPerPayment()), ledger, pts, cfg.refPrefix());
+         this.statements = new StatementService(members, ledger, pts);
+         this.topEarners = new TopEarnersReport(members, ledger);
++        this.members = members;
++        this.pts = pts;
+     }
+ 
+     /** Runs the earn batch for one day's acquirer export (data.dir/payments-YYYY-MM-DD.csv). */
+@@ -56,4 +61,15 @@
+     public String topEarnersText(YearMonth month, int n) {
+         return ReportFormatter.topEarners(month, topEarners.top(month, n));
+     }
++
++    /**
++     * Customer-care compensation: credits points once per ticket; returns the vendor entry number.
++     * Uses its own vendor reference (A-ticket) and stays out of the earn ledger.
++     */
++    public String compensate(String memberNo, long points, String ticketNo) {
++        Member m = members.find(memberNo).orElseThrow(() -> new IllegalArgumentException("unknown member " + memberNo));
++        if (points <= 0) throw new IllegalArgumentException("points must be positive: " + points);
++        // the vendor accepts a reference once per ledger, so a repeated ticket is refused there
++        return pts.earn(m.memberNo(), points, "A-" + ticketNo);
++    }
+ }
