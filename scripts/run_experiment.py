@@ -20,6 +20,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
 
@@ -89,6 +90,35 @@ PROMPT_CARD = (
 # 추가 실험 arm L(P-lite): 검색·요약이 완벽한 MCP의 상한 — 정답 카드 결론 2~3줄만 준다 (아카이브 접근은 B와 같이 금지)
 PROMPT_SUMMARY = "\n\n참고: 이 문제와 관련될 수 있는 과거 실전 이슈의 결론 요약이다.\n---\n{summary}\n---"
 ARM_PROMPTS = {"A": PROMPT_ARCHIVE, "F": PROMPT_ARCHIVE_FIRST, "B": ""}
+
+# 5차-b(ADR-0006) 변경 요청 과제: --prompt-set decision 이면 위 문구 대신 쓴다(완료 기준·수정 금지·요약 지시는 같다)
+DECISION_PROMPTS = {
+    "PROMPT_BASE": (
+        "현재 디렉터리의 프로젝트에 변경 요청이 들어왔다. TASK.md 를 읽고 요청을 구현하라.\n"
+        "완료 기준: 현재 디렉터리에서 `bash test.sh` 가 통과한다. 테스트 파일과 test.sh 는 수정하지 마라.\n"
+        "작업은 현재 디렉터리 안에서만 하라. 끝나면 구현 내용을 3줄 이내로 요약하라."
+    ),
+    "PROMPT_ARCHIVE_FIRST": (
+        "\n\n작업 규칙: 이 회사의 과거 의사결정 기록(맥락·결정·이유)을 정리한 아카이브가 {archive} 에 있다 (README.md 가 인덱스)."
+        " 코드를 고치기 전에 **먼저 이 아카이브에서 관련 기록을 찾아 읽어라.** 관련 기록이 없거나 맞지 않을 때만 직접 조사하라."
+    ),
+    "PROMPT_CARD": (
+        "\n\n작업 규칙: 이 요청과 관련된 과거 의사결정 기록이 {card_dir} 에 있다"
+        " (1-question.md, 2-summary.md, 3-answer.md). 코드를 고치기 전에 **먼저 이 기록을 읽어라.**"
+    ),
+    "PROMPT_SUMMARY": "\n\n참고: 이 요청과 관련될 수 있는 과거 의사결정의 결론 요약이다.\n---\n{summary}\n---",
+}
+
+
+def set_prompt_set(name: str) -> None:
+    global PROMPT_BASE, PROMPT_ARCHIVE_FIRST, PROMPT_CARD, PROMPT_SUMMARY
+    if name == "bug":
+        return
+    if name != "decision":
+        raise ValueError(f"알 수 없는 prompt set: {name}")
+    PROMPT_BASE, PROMPT_ARCHIVE_FIRST, PROMPT_CARD, PROMPT_SUMMARY = (
+        DECISION_PROMPTS[k] for k in ("PROMPT_BASE", "PROMPT_ARCHIVE_FIRST", "PROMPT_CARD", "PROMPT_SUMMARY"))
+    ARM_PROMPTS["F"] = PROMPT_ARCHIVE_FIRST
 
 
 def card_path(case: str) -> str:
@@ -425,6 +455,18 @@ def run_one(case: str, arm: str, rep: int, model: str, budget: str, timeout_s: i
     return row
 
 
+_case_locks: dict = {}
+_case_locks_guard = threading.Lock()
+
+
+def run_locked(case: str, *args) -> dict:
+    """같은 케이스 실행은 동시에 돌리지 않는다 — 에이전트가 고정 이름 /tmp 파일을 쓰면 서로 지우거나 읽을 수 있다."""
+    with _case_locks_guard:
+        lock = _case_locks.setdefault(case, threading.Lock())
+    with lock:
+        return run_one(case, *args)
+
+
 def done_keys() -> set:
     keys = set()
     if RUNS_FILE.exists():
@@ -451,11 +493,13 @@ def main() -> int:
     ap.add_argument("--archive-dir", default=str(ARCHIVE_DIR))
     ap.add_argument("--summary-file", default=SUMMARY_FILE)
     ap.add_argument("--prompt-suffix-file", default="")
+    ap.add_argument("--prompt-set", default="bug", choices=("bug", "decision"))
     a = ap.parse_args()
     set_dirs(a.cases_dir, a.oracle_dir, a.results_dir)
     set_archive(a.archive_dir)
     set_summary_file(a.summary_file)
     set_prompt_suffix(a.prompt_suffix_file)
+    set_prompt_set(a.prompt_set)
 
     HOST_RUNS.mkdir(exist_ok=True)
     RAW.mkdir(parents=True, exist_ok=True)
@@ -474,15 +518,16 @@ def main() -> int:
     done = done_keys()
     jobs = []
     for rep in reps:
-        for i, c in enumerate(cases):
-            order = arms if (i + rep) % 2 == 0 else list(reversed(arms))  # A/B 교대
-            for arm in order:
-                if (c, arm, rep) not in done:
-                    jobs.append((c, arm, rep))
+        orders = [arms if (i + rep) % 2 == 0 else list(reversed(arms)) for i in range(len(cases))]  # A/B 교대
+        # 같은 케이스의 arm 이 연달아 동시에 잡히지 않게 케이스를 섞어 늘어놓는다(케이스별 잠금은 run_locked)
+        for k in range(len(arms)):
+            for c, order in zip(cases, orders):
+                if (c, order[k], rep) not in done:
+                    jobs.append((c, order[k], rep))
     print(f"jobs={len(jobs)} parallel={a.parallel}", flush=True)
     fails = 0
     with cf.ThreadPoolExecutor(max_workers=a.parallel) as ex:
-        futs = {ex.submit(run_one, c, arm, rep, a.model, a.budget, a.timeout): (c, arm, rep)
+        futs = {ex.submit(run_locked, c, arm, rep, a.model, a.budget, a.timeout): (c, arm, rep)
                 for c, arm, rep in jobs}
         for f in cf.as_completed(futs):
             c, arm, rep = futs[f]
