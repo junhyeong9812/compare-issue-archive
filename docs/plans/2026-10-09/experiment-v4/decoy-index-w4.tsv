@@ -1,0 +1,56 @@
+amlscan (자금세탁방지 모니터링)	의심거래 보고 파일 제출 응답은 정상인데 다음 날 FIU가 미접수라고 연락	`amlscan/str-file-bom-reject/`	100
+amlscan (자금세탁방지 모니터링)	고액현금거래 보고 건수가 회계팀 집계보다 매달 몇십 건 많음	`amlscan/ctr-cancel-not-netted/`	300
+amlscan (자금세탁방지 모니터링)	분기 점검에서 FIU가 지난달 보고 일부를 미제출로 집계, 내부 제출 기록은 다 있음	`amlscan/ack-pickup-void/`	300
+amlscan (자금세탁방지 모니터링)	새 분할송금 탐지 룰이 배포 후 2주간 경보를 한 건도 내지 않음	`amlscan/rule-window-unit/`	300
+kycflow (고객확인 심사 워크플로)	벤더는 심사 완료 통보를 보냈다는데 고객 상태가 '심사 중'에 머묾	`kycflow/webhook-301-post-to-get/`	100
+kycflow (고객확인 심사 워크플로)	아이폰 고객 일부의 사업자 서류 심사가 '업로드 완료'에서 넘어가지 않음	`kycflow/heic-convert-silent-stall/`	300
+kycflow (고객확인 심사 워크플로)	본인확인 벤더 월 청구 건수가 내부 집계보다 2% 남짓 많음	`kycflow/vendor-retry-double-billing/`	300
+kycflow (고객확인 심사 워크플로)	외국인 고객 KYC 자동 거절률이 하룻밤 새 크게 늘어남	`kycflow/foreign-name-order/`	300
+auditsink (감사 로그 수집)	새벽 6시~9시 사이 관리자 작업 감사 로그만 비어 있음	`auditsink/naive-ts-closed-index/`	100
+auditsink (감사 로그 수집)	외주 운영자 계정의 감사 이벤트가 날에 따라 검색되지 않음	`auditsink/field-mapping-conflict-drop/`	300
+auditsink (감사 로그 수집)	배포가 있던 날만 감사 로그 건수가 애플리케이션 로그보다 적음	`auditsink/shutdown-buffer-no-flush/`	300
+iamctl (사내 권한 관리 CLI)	권한을 회수한 상담원 계정이 회수 후 한 시간 가까이 고객 정보를 계속 조회	`iamctl/revoke-claims-in-token/`	100
+iamctl (사내 권한 관리 CLI)	분기 권한 점검에서 퇴사자 일부 계정이 아직 활성으로 남아 있음	`iamctl/hr-delta-no-catchup/`	300
+iamctl (사내 권한 관리 CLI)	장애 대응용 긴급 접근 권한 일부가 기한이 지나도 회수되지 않음	`iamctl/break-glass-untagged-grant/`	300
+iamctl (사내 권한 관리 CLI)	조직 개편 후 일부 상담원만 고객 조회 화면에서 403	`iamctl/group-deny-precedence/`	300
+csdesk (고객센터 상담 도구)	상담 티켓 야간 이관에서 매일 몇 건씩 누락, 다시 돌리면 다른 건이 빠짐	`csdesk/ticket-offset-pagination-skip/`	100
+csdesk (고객센터 상담 도구)	상담원 화면에서 일부 고객의 2023년 이전 상담 이력이 보이지 않음	`csdesk/phone-format-history-split/`	300
+csdesk (고객센터 상담 도구)	상담원이 환불을 승인했는데 고객 환불이 사흘 뒤에야 처리	`csdesk/refund-approval-no-delegate/`	300
+csdesk (고객센터 상담 도구)	점심시간마다 상담 도구 고객 검색이 8초 넘게 걸리고 DB CPU가 치솟음	`csdesk/phone-suffix-like-scan/`	300
+maskd (개인정보 마스킹 프록시)	파트너 정산 리포트 대사에서 일부 거래가 '미매칭'으로 남음	`maskd/txid-pattern-masked-recon/`	100
+maskd (개인정보 마스킹 프록시)	개인정보 점검에서 상담 화면 오류 팝업에 주민등록번호 뒷자리가 그대로 노출	`maskd/content-type-bypass/`	100
+maskd (개인정보 마스킹 프록시)	고객 거래내역 조회 API가 가끔 수 초씩 걸림, 대부분은 50ms 이내	`maskd/regex-backtrack-latency/`	300
+consentdb (개인정보 동의 관리)	문자 수신을 거부한 고객에게 광고 문자가 계속 발송됨	`consentdb/channel-all-key-optout/`	300
+consentdb (개인정보 동의 관리)	제휴사에 넘긴 마케팅 동의 명단에 이미 철회한 고객이 계속 포함	`consentdb/export-delta-misses-withdraw/`	300
+consentdb (개인정보 동의 관리)	분쟁 조정 요청 건의 거래 기록이 조회되지 않음	`consentdb/purge-cascade-tx-records/`	300
+otpsvc (인증번호·OTP 서버)	저녁 7시 무렵 인증번호 문자가 5~10분 늦게 와서 입력 시간 초과	`otpsvc/otp-shared-bulk-queue/`	100
+otpsvc (인증번호·OTP 서버)	MFA 인증이 실패로 뜬 뒤 다음 코드로는 됨, 로그에는 첫 시도에도 성공 기록	`otpsvc/totp-replay-retry-fail/`	300
+otpsvc (인증번호·OTP 서버)	모의해킹에서 인증번호 오입력 잠금이 한도보다 훨씬 늦게 걸린다는 지적	`otpsvc/lock-counter-per-node/`	300
+wafedge (웹 방화벽)	카드사가 보냈다는 정산 결과 통보 일부가 우리 쪽에 도착하지 않음	`wafedge/partner-callback-traversal-rule/`	300
+wafedge (웹 방화벽)	간편송금 제휴사 결과 통보의 절반가량이 도착하지 않음, 재전송하면 들어오기도 함	`wafedge/partner-ip-allowlist-single/`	300
+wafedge (웹 방화벽)	대형 가맹점 한 곳만 점심 피크에 결제 API가 429로 실패	`wafedge/nat-rate-limit/`	100
+wafedge (웹 방화벽)	WAF 규칙 갱신 다음 날 정산 배치의 내부 API 호출만 403	`wafedge/empty-ua-managed-rule/`	300
+sanctlist (제재 명단 조회)	제재 명단 갱신이 10월부터 반영되지 않음, 적재 배치는 매일 성공	`sanctlist/version-string-compare/`	100
+sanctlist (제재 명단 조회)	제재 명단의 국내 대상자 일부가 고객 대조에서 걸리지 않음	`sanctlist/nfd-name-unmatched/`	300
+callrec (상담 녹취 보관)	1시간 넘는 상담 통화는 녹취 후반부가 재생되지 않음	`callrec/long-call-part-unlinked/`	300
+callrec (상담 녹취 보관)	민원 조사 중 넉 달 전 상담 녹취가 일부 없음	`callrec/lifecycle-prefix-typo/`	300
+callrec (상담 녹취 보관)	상담 품질 키워드 검색에서 새 콜센터 상담 건이 거의 잡히지 않음	`callrec/stt-single-channel/`	300
+chatbridge (상담 채팅 중계)	상담 채팅에서 고객 메시지가 상담원 화면에 늦게 뜸	`chatbridge/lb-idle-poll-fallback/`	300
+chatbridge (상담 채팅 중계)	상담 종료 후 이력을 다시 열면 첨부 이미지가 깨져 보임	`chatbridge/presigned-url-expire-history/`	300
+secbox (비밀 저장소)	한 달에 한 번꼴로 새벽에 정산 서비스만 DB 인증 실패	`secbox/lease-max-ttl-renew/`	100
+secbox (비밀 저장소)	대규모 롤아웃 때 일부 파드가 기동 실패로 계속 재시작	`secbox/namespace-rate-limit-rollout/`	300
+secbox (비밀 저장소)	새 결제 서명 키 적용 후 운영에서만 서명 검증 실패, 스테이징은 정상	`secbox/pem-env-first-line/`	100
+pwreset (비밀번호 재설정 서비스)	재설정 메일 링크를 처음 눌러도 '만료된 링크'로 나옴, 법인 고객 위주	`pwreset/mail-scanner-consumes-token/`	100
+pwreset (비밀번호 재설정 서비스)	비밀번호를 바꾼 뒤에도 다른 기기 로그인이 유지된다는 계정 도용 민원	`pwreset/reset-keeps-refresh-tokens/`	300
+oidcbr (소셜 로그인 브로커)	애플 로그인 고객 일부가 기존 포인트가 없는 새 계정으로 로그인됨	`oidcbr/apple-relay-email-dup-account/`	300
+oidcbr (소셜 로그인 브로커)	특정 소셜 로그인 후 다시 로그인 화면으로 돌아옴, 사파리와 최신 크롬에서	`oidcbr/samesite-form-post-state/`	300
+oidcbr (소셜 로그인 브로커)	새벽부터 한 소셜 로그인이 전부 실패, 오후에 저절로 복구	`oidcbr/jwks-unknown-kid-no-refetch/`	100
+oidcbr (소셜 로그인 브로커)	통합 로그아웃 후에도 제휴몰 탭은 로그인 상태로 남음	`oidcbr/frontchannel-logout-3p-cookie/`	300
+tokensvc (토큰 발급 서버)	앱을 오래 두었다 열면 간헐적으로 강제 로그아웃	`tokensvc/refresh-rotation-race/`	100
+tokensvc (토큰 발급 서버)	보안 점검에서 파트너 토큰이 만료 시각이 지나도 통과된다는 지적	`tokensvc/exp-millis-never-expire/`	300
+tokensvc (토큰 발급 서버)	파트너 API 일부 엔드포인트만 간헐적 403, 재시작하면 증상이 바뀜	`tokensvc/client-token-cache-no-scope/`	300
+devbind (기기 등록·간편인증)	앱을 재설치한 고객 일부가 간편인증 등록에 실패	`devbind/reinstall-device-cap/`	300
+devbind (기기 등록·간편인증)	지문을 새로 등록한 안드로이드 고객이 생체 로그인을 못 함	`devbind/biometric-key-invalidated/`	300
+botguard (봇 차단·캡차)	결제 페이지에서 캡차를 풀어도 계속 다시 나옴	`botguard/captcha-cookie-subdomain/`	300
+botguard (봇 차단·캡차)	한 통신사 5G 고객 일부가 로그인 때마다 추가 인증을 요구받음	`botguard/geoip-db-stale/`	300
+botguard (봇 차단·캡차)	새벽 시간 다수 계정 무단 로그인 민원, 봇 차단 경보는 없음	`botguard/distributed-stuffing-missed/`	300

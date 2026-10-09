@@ -1,0 +1,54 @@
+fxq (환율 CLI)	월말 사흘간 외화 평가 리포트에 일부 통화만 나오고 나머지 통화 칸이 비어 있음	`fxq/monthly-quota-exhausted-dashboard-poll/`	100
+fxq (환율 CLI)	환율 조회 배치가 매일 아침 40분씩 늦게 끝나 평가 리포트 반영이 늦음	`fxq/egress-proxy-cutover-timeout/`	300
+ledgerctl (원장 CLI)	배치 서버 재이미징 후 첫 새벽 원장 기장 배치가 인증 오류로 전부 실패	`ledgerctl/reimage-config-owner-root/`	100
+ledgerctl (원장 CLI)	환불 전표가 이중 기장돼 환불 대사에서 원장 금액이 더 많음	`ledgerctl/ha-failover-double-batch-run/`	300
+mqpub (메시지 발행)	정산 완료 웹훅이 오전 내내 오지 않다가 오후에 한꺼번에 도착	`messaging/mqpub-credential-rotation-retry-backlog/`	100
+mqpub (메시지 발행)	야간 일괄 발행 배치가 밤새 실패했는데 아침 업무 시작까지 아무도 몰랐음	`messaging/mqpub-host-disk-full-debug-log/`	300
+xferq (파일 전송 CLI)	카드사가 대사 파일을 사흘째 못 받았다고 함, 송신 배치는 재시도 중	`xferq/vendor-dc-move-hostkey-mismatch/`	300
+xferq (파일 전송 CLI)	파일 전송 배치가 '토큰 유효 시간' 오류로 매시간 실패	`xferq/ntp-stopped-token-not-yet-valid/`	100
+idchk (본인확인 CLI)	월간 재확인 배치에서 일요일 새벽에 처리된 가맹점만 '재확인 미완료'로 남음	`idchk/vendor-maintenance-window-timeout/`	100
+idchk (본인확인 CLI)	본인확인 벤더 월 청구서가 평소의 네 배로 나옴	`idchk/daily-cap-overage-billing-spike/`	300
+pgsim (PG 환불)	정기배송 해지 환불이 고객 계좌에 이틀 늦게 들어갔다는 민원	`pgsim/merchant-api-key-expiry-refund-delay/`	100
+pgsim (PG 환불)	환불 배치 응답은 정상인데 고객에게 환불이 들어가지 않음	`pgsim/upgrade-config-template-test-endpoint/`	300
+pushq (푸시 예약)	쿠폰 만료 알림이 iOS 고객에게만 사흘째 오지 않음	`pushq/apns-auth-cert-expiry-ios-only/`	100
+pushq (푸시 예약)	블랙프라이데이 당일 같은 푸시가 두 번씩 왔다는 고객 문의	`pushq/run-cron-overlap-duplicate-send/`	300
+stockpush (재고 연동)	주말 동안 오픈마켓 재고가 갱신되지 않아 품절 상품 주문이 들어옴	`stockpush/openmall-token-refresh-cron-missing/`	100
+stockpush (재고 연동)	재고 연동 CLI 업그레이드 직후 실행 자체가 안 되고 재고 연동이 3시간 멈춤	`stockpush/upgrade-glibc-requirement-rollback/`	300
+cfgsvc (설정 서비스)	운영 콘솔에서 설정 저장이 30초 걸리다 오류가 나고 다시 누르면 됨	`cfgsvc/leader-failover-write-timeout/`	100
+cfgsvc (설정 서비스)	가맹점 한도 변경이 결제 서버 일부 노드에만 반영되지 않음	`cfgsvc/client-token-ttl-stale-node-cache/`	300
+ptsctl (포인트 CLI)	캐시백→포인트 이관 후 일부 회원이 포인트가 안 들어왔다고 문의	`ptsctl/vendor-outage-window-batch-no-retry/`	300
+ptsctl (포인트 CLI)	인프라 작업 다음 날 아침부터 포인트 적립이 전부 '접근 거부'로 실패	`ptsctl/nat-gateway-egress-ip-allowlist/`	100
+ordhub (주문 허브)	오픈마켓 주문 일부가 주문 허브에 들어오지 않았는데 마켓 쪽에는 주문이 있음	`ordhub/webhook-secret-rotation-signature-reject/`	100
+ordhub (주문 허브)	같은 결제 한 번에 주문이 두 건 생성돼 출고가 두 번 나감	`ordhub/callback-idempotency-ttl-double-order/`	300
+ordhub (주문 허브)	라이브 방송 중 주문 확인 알림이 25분 늦게 도착하고 재고 차감도 늦음	`ordhub/live-commerce-hot-partition-lag/`	300
+ordhub (주문 허브)	배포 직후 주문 API 응답이 점심 피크에 8초까지 늘어남	`ordhub/deploy-pool-size-default-p99/`	300
+cartsvc (장바구니)	일부 고객의 장바구니가 갑자기 비어 있다는 문의가 매일 조금씩 들어옴	`cartsvc/ttl-set-on-create-active-cart-expire/`	100
+cartsvc (장바구니)	결제 직전 금액이 장바구니에 보이던 금액과 달라 결제 이탈이 급증	`cartsvc/promo-end-price-snapshot-mismatch/`	300
+cartsvc (장바구니)	로그인하면 장바구니 상품 수량이 두 배가 됨	`cartsvc/guest-merge-quantity-doubled/`	300
+cpnengine (쿠폰 엔진)	1만 장 한정 선착순 쿠폰이 1만 장보다 많이 발급되고 사용까지 됨	`cpnengine/first-come-issue-race-overissue/`	100
+cpnengine (쿠폰 엔진)	만료일 당일 오전부터 쿠폰이 사용 불가라는 문의가 몰림	`cpnengine/expiry-utc-midnight-kst-morning/`	300
+cpnengine (쿠폰 엔진)	판매자 쿠폰 분담금 월간 리포트가 판매자 정산액과 일부 판매자만 맞지 않음	`cpnengine/burden-report-reissue-double-count/`	300
+prodsrch (상품 검색)	판매자가 등록한 신규 상품이 몇 시간째 검색에 나오지 않음	`prodsrch/consumer-rebalance-loop-new-item-delay/`	300
+prodsrch (상품 검색)	사전 갱신 다음 날부터 '무선이어폰' 같은 일부 검색어 결과가 0건	`prodsrch/user-dictionary-update-no-reindex/`	300
+prodsrch (상품 검색)	전체 재색인 작업 중 상품 검색 응답이 3초 이상으로 느려짐	`prodsrch/bulk-index-refresh-interval-cpu/`	300
+recoeng (상품 추천)	이미 구매한 상품이 며칠째 추천 영역에 계속 나옴	`recoeng/feature-store-lag-purchased-item-reco/`	300
+recoeng (상품 추천)	새 추천 모델 배포 뒤 같은 고객에게 새 모델·옛 모델 추천이 번갈아 나옴	`recoeng/model-rollout-cache-key-no-version/`	300
+recoeng (상품 추천)	품절된 상품이 추천 영역에 계속 떠서 눌러 보면 품절이라는 불만	`recoeng/out-of-stock-filter-daily-batch/`	300
+shiptrack (배송 추적)	일부 주문이 배송 완료로 바뀌지 않아 자동 구매 확정과 판매자 정산이 밀림	`shiptrack/carrier-new-status-code-unmapped/`	300
+shiptrack (배송 추적)	오후 3시 이후 배송 조회가 전부 '정보 없음'으로 나옴	`shiptrack/carrier-api-daily-quota-polling/`	300
+shiptrack (배송 추적)	주문한 적 없는 상품의 배송 출발 알림을 받았다는 고객 문의	`shiptrack/waybill-number-recycle-wrong-customer/`	300
+wmsbridge (창고 WMS 연동)	당일 출고 약속 주문 일부가 다음 날 출고돼 배송 지연 보상 요청	`wmsbridge/wave-cutoff-queue-lag-next-day-ship/`	100
+wmsbridge (창고 WMS 연동)	창고 로케이션 개편 첫날 피커들이 상품을 못 찾아 출고가 반나절 지연	`wmsbridge/location-code-migration-picklist-old/`	300
+wmsbridge (창고 WMS 연동)	입고한 상품이 하루 만에 품절로 표시되는데 창고에는 재고가 잔뜩 있음	`wmsbridge/asn-case-unit-inventory-understated/`	300
+wmsbridge (창고 WMS 연동)	출고는 됐는데 일부 주문만 출고 확정이 반영되지 않아 고객 배송 조회가 비어 있음	`wmsbridge/confirm-file-read-while-writing/`	300
+sellerrpt (판매자 정산 리포트)	월간 판매자 정산 리포트가 PG 정산과 월말 환불분만 차이 남	`sellerrpt/month-end-refund-approval-date-basis/`	300
+sellerrpt (판매자 정산 리포트)	해외 판매 판매자의 정산 리포트 합계가 실제 입금액과 판매자마다 수십 원씩 다름	`sellerrpt/fx-rounding-per-line-vs-total/`	300
+sellerrpt (판매자 정산 리포트)	판매자 일 마감 리포트에서 밤 11시 이후 거래 일부가 빠짐	`sellerrpt/replica-lag-report-tail-missing/`	300
+etlflow (ETL 파이프라인)	일 매출 집계에서 일부 채널 매출만 0으로 나오고 전체 매출이 줄어 보임	`etlflow/source-column-rename-null-revenue/`	300
+etlflow (ETL 파이프라인)	백필 작업 다음 날 어제 매출이 절반으로 줄어 보임	`etlflow/backfill-partition-overwrite-today-loss/`	300
+etlflow (ETL 파이프라인)	행사 다음 날 아침 매출 대시보드가 비어 있음	`etlflow/peak-volume-join-oom-empty-dashboard/`	300
+bidash (BI 대시보드)	데이터팀이 매출을 정정했는데 경영 대시보드에는 하루 종일 옛 숫자가 나옴	`bidash/exec-dashboard-cache-ttl-correction/`	300
+bidash (BI 대시보드)	조직 개편 첫날 일부 팀 대시보드가 오류 없이 빈 화면으로 나옴	`bidash/row-permission-group-reorg-blank/`	300
+splitab (A/B 테스트)	50:50으로 나눈 A/B 테스트 집계 인원이 한쪽으로 4%p 기울어 판독이 멈춤	`splitab/bot-filter-arm-asymmetry-srm/`	100
+splitab (A/B 테스트)	동시에 돌린 두 A/B 테스트가 둘 다 같은 방향으로 크게 나와 재현이 안 됨	`splitab/hash-salt-reuse-correlated-arms/`	300
+splitab (A/B 테스트)	A/B 테스트 결과가 종료 직후와 다음 날 판독에서 다르게 나옴	`splitab/late-event-early-readout-underestimate/`	300

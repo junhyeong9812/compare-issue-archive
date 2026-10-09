@@ -12,3 +12,45 @@ kvcache (Redis 캐시 클러스터)	캐시 노드 증설 작업 중 세션 조�
 kvcache (Redis 캐시 클러스터)	쿠폰 오픈 시각에 캐시 한 노드만 CPU 100%, 쿠폰 조회 타임아웃	`kvcache/hot-key-single-shard-cpu/`	300
 kvcache (Redis 캐시 클러스터)	장바구니 재고 홀드가 만료 시각이 지나도 풀리지 않아 품절로 보임	`kvcache/keyspace-events-lost-after-failover/`	300
 srchidx (검색엔진 색인 파이프라인)	재색인 이후 새로 가입한 가맹점만 어드민 검색에 안 나옴	`srchidx/alias-swap-writer-pinned-old-index/`	300
+srchidx (검색엔진 색인 파이프라인)	새로 추가한 사업자 유형으로 가맹점을 걸러 검색하면 결과가 0건	`srchidx/dynamic-false-new-field-unsearchable/`	300
+srchidx (검색엔진 색인 파이프라인)	거래 검색에서 일부 거래만 빠지고 색인 배치는 매번 성공	`srchidx/bulk-200-partial-errors-ignored/`	100
+srchidx (검색엔진 색인 파이프라인)	어드민 거래 내역 엑셀 내보내기가 돌 때마다 검색 클러스터 전체가 느려짐	`srchidx/deep-from-size-breaker-trip/`	300
+kdeploy (쿠버네티스 배포 도구)	배포할 때마다 1~2분간 결제 승인 API 5xx와 지연 급증	`kdeploy/readiness-before-cache-warmup/`	100
+kdeploy (쿠버네티스 배포 도구)	배포 중 로드밸런서에서 502가 수십 건씩 튐, 앱 로그엔 오류 없음	`kdeploy/no-prestop-endpoint-lag-502/`	300
+kdeploy (쿠버네티스 배포 도구)	수수료 설정을 바꿨는데 일부 파드만 옛 수수료로 계산	`kdeploy/configmap-subpath-not-updated/`	300
+kdeploy (쿠버네티스 배포 도구)	정산 배치 파드가 힙 사용량은 낮은데 하루 두세 번 OOMKilled	`kdeploy/jvm-heap-vs-container-limit-oomkill/`	300
+kdeploy (쿠버네티스 배포 도구)	일별 정산 리포트가 어느 날부터 생성되지 않고 경보도 없음	`kdeploy/cronjob-missed-schedules-stop/`	300
+kdeploy (쿠버네티스 배포 도구)	같은 버전으로 배포했는데 가맹점 정산 금액이 파드에 따라 1원씩 다름	`kdeploy/reused-tag-ifnotpresent-mixed-image/`	100
+lbctl (L7 로드밸런서)	한가한 시간대에 가맹점 API 호출이 간헐적으로 502	`lbctl/idle-timeout-longer-than-upstream/`	100
+lbctl (L7 로드밸런서)	배포 후에도 일부 가맹점 어드민 사용자에게 옛 화면이 30분 넘게 보임	`lbctl/sticky-session-draining-node/`	300
+lbctl (L7 로드밸런서)	정산 지급 요청이 은행으로 두 번 나간 건이 월말에만 몇 건씩 생겨 대사 차액	`lbctl/retry-on-timeout-duplicate-post/`	100
+lbctl (L7 로드밸런서)	인증 필터 배포 직후 가맹점 API 전체가 503	`lbctl/health-check-path-behind-auth/`	300
+dnsops (사내 DNS)	새 파트너 엔드포인트를 등록했는데 일부 서버에서만 한 시간 동안 이름을 못 찾음	`dnsops/negative-cache-before-record-created/`	300
+dnsops (사내 DNS)	외부 PG 호출 지연이 피크마다 수백 ms 늘고 DNS 서버 CPU가 치솟음	`dnsops/ndots-search-domain-amplification/`	300
+dnsops (사내 DNS)	가맹점 웹훅 발송은 성공으로 찍히는데 3분의 1 정도만 가맹점이 못 받았다고 함	`dnsops/round-robin-stale-ip-no-fallback/`	100
+blobgw (오브젝트 스토리지 게이트웨이)	파트너가 일별 거래 파일이 버킷에 없다고 함, 업로드 작업 로그는 성공	`blobgw/multipart-complete-not-called/`	100
+blobgw (오브젝트 스토리지 게이트웨이)	가맹점에 보낸 7일짜리 정산서 다운로드 링크가 한 시간 만에 만료 오류	`blobgw/presigned-url-temp-credential-expiry/`	300
+blobgw (오브젝트 스토리지 게이트웨이)	파트너가 업로드 완료 통지를 받고 바로 가져가면 파일이 없다고 하다가 몇 분 뒤 성공	`blobgw/dr-region-read-replication-lag/`	300
+bkvault (백업 볼트)	정산 서버 복구 연습에서 정산 첨부 디렉터리 일부만 비어 있음	`bkvault/one-file-system-skips-new-volume/`	300
+bkvault (백업 볼트)	DB 복구 연습에서 6개월 전 백업만 복호화 실패	`bkvault/kms-key-version-disabled-restore/`	300
+bkvault (백업 볼트)	감사 대응으로 4월 말 시점 원장을 복구하려는데 4월 월간 백업이 없음	`bkvault/gfs-monthly-picks-failed-weekly/`	300
+cipipe (CI 파이프라인)	CI는 통과했는데 운영 배포 후 파트너가 금액 형식 오류로 요청을 거부	`cipipe/cache-key-missing-lockfile/`	300
+cipipe (CI 파이프라인)	통합 테스트가 2주간 계속 실패했는데 머지와 배포가 막히지 않음	`cipipe/allow-failure-integration-stage/`	100
+cipipe (CI 파이프라인)	두 서비스의 배포 산출물 버전이 둘 다 0.0.0-unknown으로 찍히고 하나가 다른 하나를 덮어씀	`cipipe/shallow-clone-version-unknown-overwrite/`	300
+artihub (아티팩트 저장소)	공개된 지 몇 시간 지난 라이브러리 새 버전을 사내 빌드에서 하루 종일 못 받음	`artihub/remote-404-cached-new-release/`	300
+artihub (아티팩트 저장소)	노드 교체 후 정산 대사 서비스 파드가 이미지를 못 받아 기동 실패	`artihub/cleanup-unused-30d-deleted-prod-image/`	300
+tracepipe (분산 트레이싱 수집기)	결제 오류 구간의 트레이스를 찾으면 일부만 있고 대부분 비어 있음	`tracepipe/head-sampling-drops-error-traces/`	300
+tracepipe (분산 트레이싱 수집기)	환불 처리 트레이스가 비동기 단계부터 끊겨 별도 트레이스로 흩어짐	`tracepipe/async-executor-context-lost/`	300
+tracepipe (분산 트레이싱 수집기)	트레이스 백엔드 장애 뒤 한 시간치 스팬이 일부만 들어와 있음, 수집기는 정상 응답	`tracepipe/exporter-queue-full-silent-drop/`	100
+alertrt (경보 라우터)	승인 오류율이 10%를 넘었는데 당직 호출이 오지 않음	`alertrt/inhibit-by-stale-cluster-alert/`	300
+alertrt (경보 라우터)	정산 파일 생성 실패 경보가 인프라 채널에만 가고 정산팀은 못 받음	`alertrt/route-first-match-team-not-paged/`	300
+tlsrenew (인증서 자동 갱신)	인증서 갱신 다음 날부터 일부 파트너사만 우리 API 호출이 TLS 오류	`tlsrenew/missing-intermediate-java-partners/`	100
+tlsrenew (인증서 자동 갱신)	가맹점 결제창 도메인 인증서가 만료돼 결제창 접속 불가	`tlsrenew/dns01-cname-stale-renew-fail/`	300
+nodepool (노드 오토스케일러)	일별 정산 지급 파일에 같은 가맹점 지급 줄이 두 번 들어가 은행 대사 차액	`nodepool/scale-down-evicts-settlement-batch/`	300
+nodepool (노드 오토스케일러)	오후에 가맹점 어드민 전체가 12분간 접속 불가	`nodepool/spot-only-single-zone-outage/`	100
+egresspx (아웃바운드 프록시)	환불 결과 통지가 접수는 정상인데 한 카드사만 며칠째 못 받았다고 함	`egresspx/ip-allowlist-partner-ip-changed/`	300
+egresspx (아웃바운드 프록시)	결제 피크 때 외부 PG 연결이 무작위로 타임아웃, PG 쪽은 요청을 못 봄	`egresspx/snat-port-exhaustion-peak/`	300
+metricdb (시계열 메트릭 DB)	월간 거래 건수 리포트가 원장 집계와 매달 몇 % 차이	`metricdb/rollup-avg-on-counter-monthly-report/`	300
+metricdb (시계열 메트릭 DB)	VM 복구 후 결제 서버 한 대의 지표만 대시보드에서 비어 있음	`metricdb/out-of-order-after-vm-restore/`	300
+sharefs (공유 파일 스토리지)	정산 결과 파일이 같은 날 두 벌 생성돼 파트너 대사에서 차액	`sharefs/nfs-nolock-concurrent-batch/`	300
+sharefs (공유 파일 스토리지)	용량은 40% 남았는데 파일 업로드가 'No space left on device'로 실패	`sharefs/inode-exhaustion-temp-files/`	300

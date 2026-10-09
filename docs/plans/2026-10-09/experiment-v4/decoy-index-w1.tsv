@@ -12,3 +12,45 @@ etaxbr (전자세금계산서 발행 중계)	월초 세금계산서 일괄 발�
 etaxbr (전자세금계산서 발행 중계)	중계사 장애 시간에 가맹점 가입 API까지 같이 느려짐	`etaxbr/sync-issue-timeout-thread-block/`	300
 glsync (회계 GL 연동)	일 마감 대사에서 정산 원장과 회계 총계정원장 금액이 일부 날만 어긋남	`glsync/unbalanced-journal-silent-skip/`	100
 glsync (회계 GL 연동)	월말 카드 수수료 합계가 회계 장부와 몇 원~몇십 원 차이	`glsync/rounding-mode-half-even/`	300
+glsync (회계 GL 연동)	월말 마감 날에만 회계 연동 배치가 중간에 죽고 재실행해도 같은 지점에서 죽음	`glsync/month-end-oom-full-load/`	100
+glsync (회계 GL 연동)	새 결제수단 출시 날부터 회계 연동 오류 알림이 반복됨	`glsync/new-account-code-unregistered/`	300
+payoutd (가맹점 지급 대행)	지급 실행은 성공으로 찍혔는데 일부 법인 가맹점이 대금을 못 받았다고 함	`payoutd/holder-name-corp-prefix-hold/`	300
+payoutd (가맹점 지급 대행)	연말 대형 가맹점 지급이 일부만 들어오고 나머지는 하루 뒤에 들어옴	`payoutd/daily-limit-remainder-queue/`	300
+payoutd (가맹점 지급 대행)	지급 배치 로그에 같은 지급 건 처리가 두 번씩 찍히고 은행 중복 거절 응답이 다수	`payoutd/double-instance-no-leader/`	300
+payoutd (가맹점 지급 대행)	내부 감사에서 수동 지급 건 일부가 결재자 없이 실행된 것으로 보임	`payoutd/approver-equals-requester/`	100
+vacct (가상계좌 발급·입금 통지)	고객은 가상계좌로 입금했다는데 주문이 입금 대기에서 안 넘어감	`vacct/strict-amount-mismatch-park/`	100
+vacct (가상계좌 발급·입금 통지)	입금 통지가 일부만 30분~1시간 늦게 들어옴	`vacct/notify-new-source-ip-blocked/`	300
+vacct (가상계좌 발급·입금 통지)	행사 첫 10분 동안 가상계좌 결제 선택 고객 다수가 오류 화면을 봄	`vacct/issue-rate-limit-429/`	300
+vacct (가상계좌 발급·입금 통지)	특정 은행 가상계좌만 발급이 안 되고 다른 은행은 됨	`vacct/account-pool-exhausted/`	300
+cmsdebit (CMS 자동이체 출금)	자동이체 출금 신청은 접수됐는데 일부 회원만 출금이 안 되고 결과가 늦게 '불능'	`cmsdebit/consent-evidence-unregistered/`	300
+cmsdebit (CMS 자동이체 출금)	자동이체 수납 대사에서 회원 납부액 합계가 실제 입금보다 큼	`cmsdebit/partial-debit-result-code/`	100
+cmsdebit (CMS 자동이체 출금)	출금 결과 파일 처리가 새벽부터 실패하고 파일은 정상 수신됨	`cmsdebit/pgp-key-rotation-decrypt-fail/`	300
+cmsdebit (CMS 자동이체 출금)	해지한 회원에게서 자동이체가 빠져나갔다는 민원	`cmsdebit/cancel-sync-missing-terminated-member/`	300
+bnkfirm (펌뱅킹 이체 중계)	송금 대사에서 은행 출금이 사내 이체 기록보다 많음	`bnkfirm/timeout-unknown-treated-failed/`	100
+bnkfirm (펌뱅킹 이체 중계)	자정 무렵 가맹점 지급 일부가 수십 분 늦게 입금됨	`bnkfirm/bank-maintenance-window-queue/`	300
+bnkfirm (펌뱅킹 이체 중계)	은행 전용선 이체가 하루 세 번 정도 몇 분씩 전부 실패	`bnkfirm/ipsec-rekey-lifetime-mismatch/`	100
+chgback (차지백 관리)	차지백 환수가 있었던 가맹점 정산 대사에서 금액이 두 배로 어긋남	`chgback/sign-inverted-chargeback-file/`	300
+chgback (차지백 관리)	차지백 이의제기 증빙을 올렸는데 카드사가 증빙이 없다고 기각	`chgback/heic-evidence-unreadable/`	300
+chgback (차지백 관리)	고객센터 상담원 계정으로 차지백 수용 처리가 된 기록이 발견됨	`chgback/rbac-wildcard-cs-approve/`	100
+chgback (차지백 관리)	카드사 포털에서 차지백 목록을 가져오는 작업이 매일 로그인 단계에서 실패	`chgback/portal-crawler-mfa-login/`	300
+feecalc (가맹점 수수료 계산)	반기 우대 수수료 갱신 후 일부 가맹점만 수수료가 예전 요율로 계산됨	`feecalc/preferential-rate-rep-merchant-only/`	300
+feecalc (가맹점 수수료 계산)	해외카드 수수료 정산 대사에서 카드사 청구액과 매달 소액 차이	`feecalc/foreign-card-fx-auth-date/`	300
+feecalc (가맹점 수수료 계산)	정산 배치가 평소 40분에서 4시간 넘게 걸려 지급 시각을 놓침	`feecalc/n-plus-one-rate-lookup/`	300
+remitx (해외송금)	해외 셀러 정산 송금이 일부 금액만 도착했다는 문의	`remitx/sha-charge-intermediary-deduct/`	100
+remitx (해외송금)	해외송금이 'SENT'로 찍혔는데 수취인이 일주일째 못 받았다고 함	`remitx/sanctions-screening-hold/`	300
+remitx (해외송금)	개인정보 점검에서 송금 서버 애플리케이션 로그에 수취인 계좌번호 원문 발견	`remitx/account-number-plaintext-log/`	300
+remitx (해외송금)	해외송금 요청이 서버 몇 대에서만 TLS 오류로 실패	`remitx/mtls-intermediate-ca-missing/`	300
+cashrcpt (현금영수증 발행)	환불한 현금영수증 일부가 국세청에는 발급 상태로 남아 고객 연말정산에 잡힘	`cashrcpt/cancel-orig-date-today-reject/`	300
+cashrcpt (현금영수증 발행)	배포 직후 현금영수증 발행 오류 로그에 '중복 요청' 응답이 수백 건	`cashrcpt/sigterm-inflight-duplicate-issue/`	300
+billkey (정기결제 빌링키)	정기결제 일부 회원만 매달 결제 실패가 늘고 다음 달에도 반복	`billkey/card-reissue-billing-key-invalid/`	300
+billkey (정기결제 빌링키)	정기결제 일괄 청구 날 오전에 결제 실패가 대량으로 몰림	`billkey/batch-threads-pg-ip-throttle/`	100
+escrowd (에스크로 구매확정)	에스크로 주문 일부만 구매확정이 안 돼 판매자 정산이 늦어짐	`escrowd/courier-code-tracking-no-start/`	300
+escrowd (에스크로 구매확정)	배포 시각에 결제 완료 처리가 10분간 멈춤	`escrowd/enum-migration-table-lock/`	300
+tokvault (카드 토큰 보관)	결제 직후 바로 취소하면 가끔 '토큰 없음'으로 실패하고 몇 초 뒤 재시도하면 됨	`tokvault/replica-lag-token-not-found/`	300
+tokvault (카드 토큰 보관)	결제 피크 시간에 카드 등록 응답이 2초 이상으로 느려짐	`tokvault/hsm-session-cap-latency/`	300
+tokvault (카드 토큰 보관)	오래된 정기결제 회원만 결제 시 '토큰 복호화 실패' 오류	`tokvault/key-rotation-old-key-disabled-early/`	100
+reconsvc (카드 거래 대사)	카드사 대사에서 일부 거래가 엉뚱한 날짜 거래와 짝지어져 차액이 생김	`reconsvc/approval-no-wraparound-mismatch/`	100
+reconsvc (카드 거래 대사)	대사 리포트를 돌리는 시간에 다른 서비스 조회 화면이 옛 데이터를 보여 줌	`reconsvc/report-full-scan-replica-lag/`	300
+settlebat (가맹점 정산 배치)	지급 보류를 풀었는데 보류 기간 매출 일부가 정산에서 빠졌다는 가맹점 문의	`settlebat/hold-release-skips-held-period/`	300
+settlebat (가맹점 정산 배치)	정산 배치가 중간에 'No space left on device'로 멈춤	`settlebat/tmp-disk-full-batch-abort/`	100
+settlebat (가맹점 정산 배치)	배치 이미지 교체 후 첫날 정산 파일 날짜가 하루 전 날짜로 생성됨	`settlebat/container-timezone-utc-date-shift/`	300
