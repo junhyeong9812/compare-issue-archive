@@ -1,0 +1,14 @@
+acqfeed (카드사 매입 파일 수집)	카드사가 매입 정정분을 보냈다는데 정산에는 정정 전 금액이 그대로 남음	`acqfeed/correction-file-glob-miss/`	100
+acqfeed (카드사 매입 파일 수집)	일부 가맹점만 매입 대사에서 '매칭 실패'로 남고 수기로 맞추면 금액은 같음	`acqfeed/euc-kr-merchant-name-match/`	300
+acqfeed (카드사 매입 파일 수집)	새벽 매입 수집 배치가 전 카드사 중 한 곳만 연속 실패	`acqfeed/sftp-hostkey-rotation-fail/`	300
+acqfeed (카드사 매입 파일 수집)	보안 점검에서 수집 서버 로그에 카드번호 원문이 발견됨	`acqfeed/debug-log-pan-plaintext/`	300
+pgroute (PG 라우팅 게이트웨이)	환불 요청은 접수됐는데 일부 고객에게 환불이 며칠째 안 들어옴	`pgroute/cancel-routed-to-other-pg/`	100
+pgroute (PG 라우팅 게이트웨이)	해외 결제 일부 통화만 PG 정산 대사 금액이 크게 어긋남	`pgroute/currency-minor-unit-jpy/`	300
+pgroute (PG 라우팅 게이트웨이)	할인 행사 시작 직후 결제 타임아웃이 폭증하고 PG 쪽은 정상이라고 함	`pgroute/hikari-pool-exhaust-pg-latency/`	100
+pgroute (PG 라우팅 게이트웨이)	PG 한 곳 장애 때 우회가 안 되고 그 PG로 계속 요청이 감	`pgroute/circuit-breaker-config-key-rename/`	300
+etaxbr (전자세금계산서 발행 중계)	세금계산서는 '발행 완료'인데 일부 거래처가 홈택스에서 조회가 안 된다고 함	`etaxbr/buyer-bizno-hyphen-reject/`	300
+etaxbr (전자세금계산서 발행 중계)	수정세금계산서 일부만 국세청에 반영되지 않아 거래처 부가세 신고와 차이	`etaxbr/amend-original-ntsno-missing/`	300
+etaxbr (전자세금계산서 발행 중계)	월초 세금계산서 일괄 발행이 전부 인증 오류로 실패	`etaxbr/api-key-rotation-grace-end/`	300
+etaxbr (전자세금계산서 발행 중계)	중계사 장애 시간에 가맹점 가입 API까지 같이 느려짐	`etaxbr/sync-issue-timeout-thread-block/`	300
+glsync (회계 GL 연동)	일 마감 대사에서 정산 원장과 회계 총계정원장 금액이 일부 날만 어긋남	`glsync/unbalanced-journal-silent-skip/`	100
+glsync (회계 GL 연동)	월말 카드 수수료 합계가 회계 장부와 몇 원~몇십 원 차이	`glsync/rounding-mode-half-even/`	300

@@ -1,0 +1,57 @@
+diff -ruN a/hbexpense/config.py b/hbexpense/config.py
+--- a/hbexpense/config.py	2026-10-09 01:04:32.386200419 +0900
++++ b/hbexpense/config.py	2026-10-09 01:04:32.468894670 +0900
+@@ -21,6 +21,8 @@
+     max_amount: int = 5_000_000
+     # ledger memo column as agreed with the finance team
+     ledger_memo_chars: int = 40
++    # the ledger only books memos up to 64 UTF-8 bytes; longer ones are parked
++    ledger_memo_bytes: int = 64
+     # category -> ledger account code
+     accounts: dict = field(default_factory=lambda: {
+         "TRAVEL": "5110",
+diff -ruN a/hbexpense/ledger/entries.py b/hbexpense/ledger/entries.py
+--- a/hbexpense/ledger/entries.py	2026-10-09 01:04:32.418940113 +0900
++++ b/hbexpense/ledger/entries.py	2026-10-09 01:04:32.469301536 +0900
+@@ -1,6 +1,6 @@
+ """Turns an approved expense claim into a ledger entry."""
+ from hbexpense.models import LedgerEntry
+-from hbexpense.util.text import clip_chars, normalize
++from hbexpense.util.text import clip_chars, clip_utf8, normalize
+ 
+ 
+ def compose_memo(claim):
+@@ -14,6 +14,7 @@
+     if account is None:
+         raise ValueError(f"no ledger account for category {claim.category}")
+     memo = clip_chars(compose_memo(claim), settings.ledger_memo_chars)
++    memo = clip_utf8(memo, settings.ledger_memo_bytes)
+     return LedgerEntry(
+         account=account,
+         amount=claim.amount,
+diff -ruN a/hbexpense/util/text.py b/hbexpense/util/text.py
+--- a/hbexpense/util/text.py	2026-10-09 01:04:32.402558416 +0900
++++ b/hbexpense/util/text.py	2026-10-09 01:04:32.469152315 +0900
+@@ -30,6 +30,22 @@
+     return text[:limit].rstrip()
+ 
+ 
++def clip_utf8(text, max_bytes):
++    """Cut text to at most `max_bytes` UTF-8 bytes on a character boundary."""
++    if max_bytes <= 0:
++        return ""
++    if len(text.encode("utf-8")) <= max_bytes:
++        return text
++    out, used = [], 0
++    for ch in text:
++        size = len(ch.encode("utf-8"))
++        if used + size > max_bytes:
++            break
++        out.append(ch)
++        used += size
++    return "".join(out).rstrip()
++
++
+ def display_width(text):
+     """Terminal/report column width: East Asian wide characters count as 2."""
+     width = 0

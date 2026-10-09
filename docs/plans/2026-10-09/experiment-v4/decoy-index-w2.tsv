@@ -1,0 +1,8 @@
+smsgw (SMS 발송 게이트웨이)	결제 인증 문자가 접수 응답은 정상인데 고객에게 도착하지 않음	`smsgw/sender-number-dereg-dlr-3008/`	100
+smsgw (SMS 발송 게이트웨이)	대량 발송 중 게이트웨이 429 응답이 줄지 않고 발송 완료가 2시간 늦어짐	`smsgw/tps-429-retry-no-jitter/`	300
+smsgw (SMS 발송 게이트웨이)	배송 안내 문자 일부가 며칠째 '발송 중'으로 남고 재발송도 되지 않음	`smsgw/dlr-9999-unresolved-pending/`	300
+smsgw (SMS 발송 게이트웨이)	이벤트 당첨 안내 문자가 한 통신사 가입 고객에게만 오지 않음	`smsgw/carrier-spam-filter-keyword/`	300
+mailrelay (사내 메일 발송 릴레이)	명세서 메일이 발송 로그는 정상인데 일부 메일 서비스 고객에게만 스팸함으로 감	`mailrelay/spf-lookup-limit-permerror/`	100
+mailrelay (사내 메일 발송 릴레이)	일부 고객이 몇 달째 거래 내역 메일을 못 받았다고 함, 발송 요청은 매번 접수됨	`mailrelay/mailbox-full-hard-bounce-suppress/`	300
+mailrelay (사내 메일 발송 릴레이)	DKIM 키 교체 직후 두 시간 동안 수신 측 인증 결과가 dkim=fail	`mailrelay/dkim-selector-rotate-before-dns/`	100
+mailrelay (사내 메일 발송 릴레이)	일부 기업 가맹점 도메인으로 보낸 정산 안내 메일이 닷새 뒤 반송으로 돌아옴	`mailrelay/tls-floor-raise-deferred-bounce/`	300

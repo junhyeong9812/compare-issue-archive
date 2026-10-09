@@ -1,0 +1,16 @@
+[
+  {"sku": "GD-101", "name": "한빛 머그컵", "category": "goods", "price": 3500, "on_hand": 12},
+  {"sku": "GD-102", "name": "한빛 에코백", "category": "goods", "price": 4200, "on_hand": 5},
+  {"sku": "GD-103", "name": "캐릭터 키링 세트", "category": "goods", "price": 2800, "on_hand": 20},
+  {"sku": "gd-104", "name": "한정판 텀블러", "category": "goods", "price": 9900, "on_hand": 3},
+  {"sku": "GD-105", "name": "노트 3권 세트", "category": "goods", "price": 1900, "on_hand": 7},
+  {"sku": "VC-2001", "name": "편의점 5천원권", "category": "voucher", "price": 5000, "on_hand": 40},
+  {"sku": "VC-2002", "name": "커피 교환권", "category": "voucher", "price": 4500, "on_hand": 25},
+  {"sku": "VC-2003", "name": "영화 관람권", "category": "voucher", "price": 11000, "on_hand": 4},
+  {"sku": "FD-301", "name": "제주 감귤 3kg", "category": "food", "price": 15900, "on_hand": 9},
+  {"sku": "FD-302", "name": "수제 쿠키 박스", "category": "food", "price": 8900, "on_hand": 6},
+  {"sku": "FD-303", "name": "견과류 선물세트", "category": "food", "price": 12900, "on_hand": 2},
+  {"sku": "DG-401", "name": "전자책 1개월 이용권", "category": "digital", "price": 6900, "on_hand": 30},
+  {"sku": "DG-402", "name": "음원 스트리밍 30일", "category": "digital", "price": 7900, "on_hand": 15},
+  {"sku": "DG-403", "name": "클라우드 100GB 1년", "category": "digital", "price": 19900, "on_hand": 8}
+]

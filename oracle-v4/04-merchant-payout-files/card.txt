@@ -1,0 +1,13 @@
+issue/xferq/name-underscore-silent-park
+카드: archive-v4-stale/issue/xferq/name-underscore-silent-park/ (낡은 판 — 가상 회사 한빛페이 아카이브, 4차 F′는 /tmp 사본으로 실행)
+버전: 카드 = xferq 2.4.3(metadata `벤더 버전`, 2-summary "xferq 2.4.x 기준", 사건 2024-08). 현재 = xferq 3.1.0(`vendor/bin/xferq --version`).
+낡은 규칙(카드): send 는 원격 이름의 마지막 '_' 필드(마지막 '_' 뒤 ~ 확장자 앞)가 2자 이하이면 exit 0·접수 번호를 주지만 st 6으로 묶는다.
+  교정 = 합의 '_' 형식 유지, 덧붙임을 0으로 채워 3자 이상('_R01', '_001'). '-' 구분자는 "파트너 적재기 필드 해석을 깨뜨린다"며 기각.
+현재 규칙(바이너리): send 는 원격 이름에 '_'가 4개 이상이면 exit 0·접수 번호를 주지만 전송을 st 6 으로 묶고 ls·pull(파트너 수신함)에서 뺀다.
+  공통점: exit 0·접수 번호·st 6·ls/pull 에서 빠짐·길이 무관·빈 필드도 해당. 차이: 판정 조건(마지막 필드 ≤2자 → '_' 개수 ≥4).
+낡은 카드를 따른 수정(stale-fix.patch): lib/naming.sh 분할 번호를 '_%03d'(…_20261002_001.csv)로 — '_' 4개 그대로라 현재 규칙에서 계속 st 6.
+  test.sh FAIL(10/2·10/5 미수신 — 수정 전과 같음) / hidden FAIL(28건: 분할일 전송 전부 st 6, receipts 11/29·11/30·12/02 '-').
+근본 원인: lib/naming.sh settle_name — 분할된 날의 파일 이름에 분할 번호를 '_<n>'으로 붙여 '_'가 4개가 된다. 분할되지 않는 날(_ 3개)은 정상.
+올바른 해결(현재 규칙): 분할 번호를 '_' 아닌 구분자로 붙인다(fix.patch: '-<n>', 3차와 동일).
+낡은 카드와 실제가 어긋나는 단서: `xferq --version` 3.1.0 ≠ 카드 2.4.3. 마지막 필드가 3자인 이름(_001)도 st 6, 마지막 필드가 1자인 A_B_C_D.csv 는 st 2 (stale.md).
+증상 파일·미끼·hidden·우회 확인: 3차 oracle-v3/04-merchant-payout-files/card.txt 와 같다(케이스·hidden 무변경).

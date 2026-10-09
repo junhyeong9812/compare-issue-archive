@@ -1,0 +1,14 @@
+--- a/steps/20-apply.sh	2026-10-09 12:01:19.070189112 +0900
++++ b/steps/20-apply.sh	2026-10-09 12:01:19.096129012 +0900
+@@ -8,6 +8,11 @@
+ require_file "$dir/changes.tsv" "staged changes"
+ 
+ : > "$dir/applied.tsv"
++# The service holds a set on a key that already has an unmarked change since
++# the last mark; clear pending changes with a mark before applying the batch so
++# every set below is visible to `get` (and so to rendering) right away.
++mark=$(cfg_mark) || die "could not mark pending changes"
++log "pending changes cleared at $mark"
+ while IFS=$'\t' read -r key val; do
+   [ -n "$key" ] || continue
+   chg=$(cfg_set "$key" "$val") || die "could not apply $key"

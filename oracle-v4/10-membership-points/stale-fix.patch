@@ -1,0 +1,27 @@
+--- a/src/infra/PtsctlClient.java	2026-10-09 12:01:30.557032045 +0900
++++ b/src/infra/PtsctlClient.java	2026-10-09 12:01:30.588137017 +0900
+@@ -26,7 +26,7 @@
+ 
+     /** Credits points to a member; returns the vendor entry number. */
+     public String earn(String memberNo, long points, String ref) {
+-        return run(List.of("earn", "--mbr", memberNo, "--pt", Long.toString(points), "--ref", ref)).strip();
++        return run(List.of("earn", "--mbr", mbr(memberNo), "--pt", Long.toString(points), "--ref", ref)).strip();
+     }
+ 
+     public long balance(String memberNo) {
+@@ -47,6 +47,15 @@
+         return rows;
+     }
+ 
++    /**
++     * Member number as the vendor must read it for `earn`. A six-digit all-digit number (store card
++     * format) is read as a number (leading zeros dropped: 004512 is credited to 4512); the @ form keeps
++     * it as issued. Other member numbers are credited as given.
++     */
++    static String mbr(String memberNo) {
++        return memberNo.matches("[0-9]{6}") ? "@" + memberNo : memberNo;
++    }
++
+     private String run(List<String> args) {
+         List<String> cmd = new ArrayList<>();
+         cmd.add(bin.toString());
