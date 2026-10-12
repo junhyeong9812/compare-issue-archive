@@ -13,3 +13,4 @@
 | 2026-10-09 | experiment-v5a(ADR-0005) | 낮음 | 워커 Opus 5회(맞는 카드) + claude -p sonnet 360 + haiku 360 + 스모크 1 | 유효 720, 낡은 카드 Sonnet G1 90/90 ÷B 0.74 · G2 66/90 1.02 · Haiku G1 80/90 0.92 · G2 74/90 0.95 · 맞는 카드 G1 +0.10/+0.00 |
 | 2026-10-09 | runner-tmpdir-isolation | 낮음 | 메인 직접 + claude -p haiku 2회(스모크·환경 확인) | TMPDIR 실행별 격리 실증, 감사 회귀 900 로그 차이 0, tmp_rm_outside 과거 71/900 |
 | 2026-10-10 | experiment-v5b(ADR-0006) | 낮음 | 워커 Opus 5회(케이스 10·기록 22) + claude -p sonnet 126 + haiku 120 | 유효 246, B 결정 위반 Sonnet 10/30·Haiku 6/30, 기록 arm 0/180, ÷B Sonnet L0.88/P0.93/F1.05 · Haiku 1.21/1.15/1.14 |
+| 2026-10-12 | usage-erratum | 낮음 | 0 | 하위 에이전트 사용 Sonnet 3회 토큰 과소 집계(6.9~16.5배) 정정 문서. 4차 ÷B 1.08~1.29, 5차-b 0.89~1.21, 결론 불변 |
